@@ -847,7 +847,11 @@
 
         // ===== News Config =====
         const NEWS_API_URL = 'https://newsapi.org/v2/top-headlines';
-        const CORS_PROXY = 'https://api.allorigins.win/raw?url=';
+        const CORS_PROXIES = [
+            'https://thingproxy.freeboard.io/fetch/',
+            'https://api.allorigins.win/raw?url=',
+            'https://cors-anywhere.herokuapp.com/'
+        ];
         const BOOKMARKS_STORAGE_KEY = 'news_bookmarks_v1';
         const API_KEY_STORAGE = 'news_api_key_v1';
         const NEWS_CACHE_PREFIX = 'news_cache_';
@@ -1269,31 +1273,44 @@
             url.searchParams.set('country', 'us');
             url.searchParams.set('category', category);
             url.searchParams.set('pageSize', '20');
-            url.searchParams.set('apiKey', apiKey);
+            url.searchParams.set('apiKey', apiKey.trim());
 
             const apiUrl = url.toString();
-            const proxyUrl = CORS_PROXY + encodeURIComponent(apiUrl);
-
             console.log('[News] API Request:', apiUrl);
-            console.log('[News] Proxy Request:', proxyUrl);
 
-            const res = await fetch(proxyUrl);
-            console.log('[News] API Response Status:', res.status);
+            // 여러 프록시 순차 시도
+            let lastError = null;
+            for (let i = 0; i < CORS_PROXIES.length; i++) {
+                const proxyUrl = CORS_PROXIES[i] + encodeURIComponent(apiUrl);
+                console.log(`[News] Trying proxy ${i + 1}/${CORS_PROXIES.length}:`, CORS_PROXIES[i]);
 
-            if (!res.ok) {
-                throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+                try {
+                    const res = await fetch(proxyUrl, { timeout: 10000 });
+                    console.log('[News] API Response Status:', res.status);
+
+                    if (!res.ok) {
+                        throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+                    }
+
+                    const data = await res.json();
+                    console.log('[News] API Response Data:', data);
+
+                    if (data.status !== 'ok') {
+                        throw new Error(data.message || 'API 오류');
+                    }
+
+                    const articles = data.articles || [];
+                    setNewsCache(category, articles);
+                    return articles;
+                } catch (err) {
+                    console.warn(`[News] Proxy ${i + 1} failed:`, err.message);
+                    lastError = err;
+                    // 다음 프록시 시도
+                }
             }
 
-            const data = await res.json();
-            console.log('[News] API Response Data:', data);
-
-            if (data.status !== 'ok') {
-                throw new Error(data.message || 'API 오류');
-            }
-
-            const articles = data.articles || [];
-            setNewsCache(category, articles);
-            return articles;
+            // 모든 프록시 실패
+            throw lastError || new Error('모든 프록시 서버가 응답하지 않습니다.');
         }
 
         // ===== News Render Layer =====
