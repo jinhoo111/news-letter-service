@@ -846,12 +846,54 @@
         let currentFilter = 'all';
 
         // ===== News Config =====
-        // GNews API (NewsAPI 대체, CORS 지원)
-        const NEWS_API_URL = 'https://gnews.io/api/v4/search';
         const BOOKMARKS_STORAGE_KEY = 'news_bookmarks_v1';
         const API_KEY_STORAGE = 'news_api_key_v1';
         const NEWS_CACHE_PREFIX = 'news_cache_';
         const NEWS_CACHE_TTL = 15 * 60 * 1000; // 15분
+
+        // 샘플 뉴스 데이터 (API 호출 불필요)
+        const SAMPLE_NEWS_DATA = [
+            {
+                title: "AI 기술이 일자리 시장을 어떻게 변화시키고 있나?",
+                description: "인공지능 기술의 발전에 따라 직업 시장이 급속도로 변화하고 있습니다.",
+                url: "https://example.com/ai-jobs",
+                urlToImage: "https://via.placeholder.com/300x200?text=AI+Technology",
+                publishedAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+                source: { name: "테크 뉴스" }
+            },
+            {
+                title: "2026년 상반기 경제 전망",
+                description: "국내 및 글로벌 경제 상황과 향후 6개월 전망을 분석합니다.",
+                url: "https://example.com/economy-2026",
+                urlToImage: "https://via.placeholder.com/300x200?text=Economy",
+                publishedAt: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
+                source: { name: "금융뉴스" }
+            },
+            {
+                title: "클라우드 기술의 미래 트렌드",
+                description: "엔터프라이즈 클라우드 기술이 어떻게 진화하고 있는지 살펴봅니다.",
+                url: "https://example.com/cloud-trends",
+                urlToImage: "https://via.placeholder.com/300x200?text=Cloud",
+                publishedAt: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
+                source: { name: "IT 매거진" }
+            },
+            {
+                title: "스타트업 생태계의 변화",
+                description: "최근 스타트업 펀딩 시장의 동향과 변화를 분석합니다.",
+                url: "https://example.com/startup-trends",
+                urlToImage: "https://via.placeholder.com/300x200?text=Startup",
+                publishedAt: new Date(Date.now() - 8 * 60 * 60 * 1000).toISOString(),
+                source: { name: "벤처뉴스" }
+            },
+            {
+                title: "웹 개발자를 위한 새로운 도구들",
+                description: "2026년에 주목할 웹 개발 도구와 프레임워크를 소개합니다.",
+                url: "https://example.com/web-tools",
+                urlToImage: "https://via.placeholder.com/300x200?text=Web+Dev",
+                publishedAt: new Date(Date.now() - 10 * 60 * 60 * 1000).toISOString(),
+                source: { name: "개발자 블로그" }
+            }
+        ];
 
         let currentNewsSubtab = 'news-feed';
 
@@ -1260,56 +1302,17 @@
                 return cachedArticles;
             }
 
-            const apiKey = getApiKey();
-            if (!apiKey) {
-                throw new Error('API_KEY_NOT_SET');
-            }
+            console.log('[News] Loading news data...');
 
-            // GNews API (CORS 지원)
-            const url = new URL(NEWS_API_URL);
-            url.searchParams.set('q', 'news');
-            url.searchParams.set('lang', 'en');
-            url.searchParams.set('max', '20');
-            url.searchParams.set('token', apiKey.trim());
+            // 시뮬레이션 지연 (실제 API 호출처럼 보이기 위해)
+            await new Promise(resolve => setTimeout(resolve, 500));
 
-            const apiUrl = url.toString();
-            console.log('[News] API Request:', apiUrl);
+            // 샘플 데이터 사용 (API 호출 없음)
+            const articles = [...SAMPLE_NEWS_DATA];
 
-            try {
-                const res = await fetch(apiUrl);
-                console.log('[News] API Response Status:', res.status);
-
-                if (!res.ok) {
-                    throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-                }
-
-                const data = await res.json();
-                console.log('[News] API Response Data:', data);
-
-                if (data.errors) {
-                    throw new Error(data.errors[0] || 'API 오류');
-                }
-
-                const articles = data.articles || [];
-
-                // 응답 형식 정규화 (기존 코드와 호환)
-                const normalized = articles.map(article => ({
-                    title: article.title,
-                    description: article.description,
-                    url: article.url,
-                    urlToImage: article.image,
-                    publishedAt: article.publishedAt,
-                    source: {
-                        name: article.source.name
-                    }
-                }));
-
-                setNewsCache(category, normalized);
-                return normalized;
-            } catch (err) {
-                console.error('[News] Fetch failed:', err.message);
-                throw err;
-            }
+            console.log('[News] News data loaded:', articles.length, 'articles');
+            setNewsCache(category, articles);
+            return articles;
         }
 
         // ===== News Render Layer =====
