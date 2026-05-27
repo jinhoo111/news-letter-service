@@ -846,12 +846,8 @@
         let currentFilter = 'all';
 
         // ===== News Config =====
-        const NEWS_API_URL = 'https://newsapi.org/v2/top-headlines';
-        const CORS_PROXIES = [
-            'https://thingproxy.freeboard.io/fetch/',
-            'https://api.allorigins.win/raw?url=',
-            'https://cors-anywhere.herokuapp.com/'
-        ];
+        // GNews API (NewsAPI 대체, CORS 지원)
+        const NEWS_API_URL = 'https://gnews.io/api/v4/search';
         const BOOKMARKS_STORAGE_KEY = 'news_bookmarks_v1';
         const API_KEY_STORAGE = 'news_api_key_v1';
         const NEWS_CACHE_PREFIX = 'news_cache_';
@@ -1269,48 +1265,51 @@
                 throw new Error('API_KEY_NOT_SET');
             }
 
+            // GNews API (CORS 지원)
             const url = new URL(NEWS_API_URL);
-            url.searchParams.set('country', 'us');
-            url.searchParams.set('category', category);
-            url.searchParams.set('pageSize', '20');
-            url.searchParams.set('apiKey', apiKey.trim());
+            url.searchParams.set('q', 'news');
+            url.searchParams.set('lang', 'en');
+            url.searchParams.set('max', '20');
+            url.searchParams.set('token', apiKey.trim());
 
             const apiUrl = url.toString();
             console.log('[News] API Request:', apiUrl);
 
-            // 여러 프록시 순차 시도
-            let lastError = null;
-            for (let i = 0; i < CORS_PROXIES.length; i++) {
-                const proxyUrl = CORS_PROXIES[i] + encodeURIComponent(apiUrl);
-                console.log(`[News] Trying proxy ${i + 1}/${CORS_PROXIES.length}:`, CORS_PROXIES[i]);
+            try {
+                const res = await fetch(apiUrl);
+                console.log('[News] API Response Status:', res.status);
 
-                try {
-                    const res = await fetch(proxyUrl, { timeout: 10000 });
-                    console.log('[News] API Response Status:', res.status);
-
-                    if (!res.ok) {
-                        throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-                    }
-
-                    const data = await res.json();
-                    console.log('[News] API Response Data:', data);
-
-                    if (data.status !== 'ok') {
-                        throw new Error(data.message || 'API 오류');
-                    }
-
-                    const articles = data.articles || [];
-                    setNewsCache(category, articles);
-                    return articles;
-                } catch (err) {
-                    console.warn(`[News] Proxy ${i + 1} failed:`, err.message);
-                    lastError = err;
-                    // 다음 프록시 시도
+                if (!res.ok) {
+                    throw new Error(`HTTP ${res.status}: ${res.statusText}`);
                 }
-            }
 
-            // 모든 프록시 실패
-            throw lastError || new Error('모든 프록시 서버가 응답하지 않습니다.');
+                const data = await res.json();
+                console.log('[News] API Response Data:', data);
+
+                if (data.errors) {
+                    throw new Error(data.errors[0] || 'API 오류');
+                }
+
+                const articles = data.articles || [];
+
+                // 응답 형식 정규화 (기존 코드와 호환)
+                const normalized = articles.map(article => ({
+                    title: article.title,
+                    description: article.description,
+                    url: article.url,
+                    urlToImage: article.image,
+                    publishedAt: article.publishedAt,
+                    source: {
+                        name: article.source.name
+                    }
+                }));
+
+                setNewsCache(category, normalized);
+                return normalized;
+            } catch (err) {
+                console.error('[News] Fetch failed:', err.message);
+                throw err;
+            }
         }
 
         // ===== News Render Layer =====
@@ -1527,13 +1526,14 @@
             container.innerHTML = `
                 <div class="news-state">
                     <div class="state-icon">🔑</div>
-                    <div class="state-message">뉴스를 보려면 NewsAPI 키가 필요합니다.</div>
+                    <div class="state-message">뉴스를 보려면 GNews API 키가 필요합니다.</div>
                     <div class="api-setup-form">
                         <div class="api-setup-step">
-                            <p><strong>1. NewsAPI 키 발급받기</strong></p>
+                            <p><strong>1. GNews API 키 발급받기</strong></p>
                             <p style="font-size: 13px; color: #6B7280; margin: 8px 0;">
-                                <a href="https://newsapi.org/register" target="_blank" style="color: #3B82F6; text-decoration: underline;">newsapi.org/register</a>
-                                에서 무료 가입 후 API 키를 발급받으세요.
+                                <a href="https://gnews.io/" target="_blank" style="color: #3B82F6; text-decoration: underline;">gnews.io</a>
+                                에서 무료 가입 후 API 키를 발급받으세요.<br>
+                                <span style="font-size: 12px;">(최초 가입 시 무료 50,000 API calls/month 제공)</span>
                             </p>
                         </div>
                         <div class="api-setup-step">
