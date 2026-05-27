@@ -1,10 +1,11 @@
 <!--
- * 할 일 관리 앱 (Todo Manager)
- * v1.0
+ * 할 일 관리 앱 (Todo Manager + News Widget)
+ * v1.0 - 최종 완성
  * Created: 2026-05-27
  *
- * 순수 HTML/CSS/JavaScript로 만든 개인용 할 일 관리 웹앱
- * 로컬스토리지에 데이터 저장, 브라우저에서 직접 실행 가능
+ * 순수 HTML/CSS/JavaScript 앱
+ * 로컬스토리지: 할 일, 북마크 데이터 저장
+ * sessionStorage: 뉴스 캐시 (15분)
  -->
 <!DOCTYPE html>
 <html lang="ko">
@@ -16,754 +17,135 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css" rel="stylesheet">
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        html {
-            scroll-behavior: smooth;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
         body {
-            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif;
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
             background-color: #F9FAFB;
             color: #111827;
             line-height: 1.5;
             font-size: 16px;
             padding: 16px;
         }
-        #app {
-            max-width: 640px;
-            margin: 0 auto;
-        }
-        h1 {
-            font-size: 20px;
-            font-weight: 600;
-            margin-bottom: 24px;
-            color: #111827;
-        }
+        #app { max-width: 640px; margin: 0 auto; }
+        h1 { font-size: 20px; font-weight: 600; margin-bottom: 24px; }
+
         /* Card Style */
-        .card {
-            background-color: #FFFFFF;
-            border-radius: 12px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-            padding: 16px;
-            margin-bottom: 24px;
-        }
+        .card { background: #FFF; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); padding: 16px; margin-bottom: 24px; }
+
         /* Progress Section */
-        #statsContainer {
-            margin-bottom: 24px;
-        }
-        .progress-section {
-            background-color: #FFFFFF;
-            padding: 16px;
-            border-radius: 12px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-            margin-bottom: 24px;
-        }
-        .progress-summary {
-            margin-bottom: 12px;
-        }
-        .progress-summary > div:first-child {
-            font-size: 14px;
-            color: #6B7280;
-            margin-bottom: 12px;
-            font-weight: 500;
-        }
-        .progress-bar {
-            width: 100%;
-            height: 8px;
-            background-color: #E5E7EB;
-            border-radius: 4px;
-            overflow: hidden;
-            margin-bottom: 8px;
-        }
-        .progress-fill {
-            height: 100%;
-            background-color: #3B82F6;
-            transition: width 0.3s ease;
-        }
-        .progress-percent {
-            font-size: 13px;
-            color: #6B7280;
-            text-align: right;
-            font-weight: 500;
-        }
-        .category-stats {
-            font-size: 13px;
-            color: #6B7280;
-            margin-top: 12px;
-            padding-top: 12px;
-            border-top: 1px solid #E5E7EB;
-        }
+        #statsContainer { margin-bottom: 24px; }
+        .progress-section { background: #FFF; padding: 16px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 24px; }
+        .progress-summary { margin-bottom: 12px; }
+        .progress-summary > div:first-child { font-size: 14px; color: #6B7280; margin-bottom: 12px; font-weight: 500; }
+        .progress-bar { width: 100%; height: 8px; background: #E5E7EB; border-radius: 4px; overflow: hidden; margin-bottom: 8px; }
+        .progress-fill { height: 100%; background: #3B82F6; transition: width 0.3s ease; }
+        .progress-percent { font-size: 13px; color: #6B7280; text-align: right; font-weight: 500; }
+        .category-stats { font-size: 13px; color: #6B7280; margin-top: 12px; padding-top: 12px; border-top: 1px solid #E5E7EB; }
+
         /* Filter Tabs */
-        .filter-tabs {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 24px;
-            flex-wrap: wrap;
-        }
-        .filter-tab {
-            padding: 8px 14px;
-            background-color: transparent;
-            border: 1px solid #E5E7EB;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 14px;
-            color: #6B7280;
-            transition: all 0.15s ease;
-            font-weight: 500;
-        }
-        .filter-tab:hover {
-            border-color: #3B82F6;
-            color: #3B82F6;
-        }
-        .filter-tab.active {
-            background-color: #3B82F6;
-            color: #FFFFFF;
-            border-color: #3B82F6;
-        }
-        .filter-tab:focus-visible {
-            outline: 2px solid #3B82F6;
-            outline-offset: 2px;
-        }
+        .filter-tabs { display: flex; gap: 8px; margin-bottom: 24px; flex-wrap: wrap; }
+        .filter-tab { padding: 8px 14px; background: transparent; border: 1px solid #E5E7EB; border-radius: 8px; cursor: pointer; font-size: 14px; color: #6B7280; transition: all 0.15s ease; font-weight: 500; }
+        .filter-tab:hover { border-color: #3B82F6; color: #3B82F6; }
+        .filter-tab.active { background: #3B82F6; color: #FFF; border-color: #3B82F6; }
+
         /* Input Section */
-        .input-section {
-            display: flex;
-            gap: 12px;
-            margin-bottom: 24px;
-            background-color: #FFFFFF;
-            padding: 16px;
-            border-radius: 12px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-        }
-        .input-wrapper {
-            flex: 1;
-            position: relative;
-        }
-        input[type="text"]#todoInput {
-            width: 100%;
-            padding: 10px 40px 10px 12px;
-            border: 1px solid #E5E7EB;
-            border-radius: 8px;
-            font-size: 14px;
-            color: #111827;
-            font-family: inherit;
-            transition: border-color 0.15s ease, box-shadow 0.15s ease;
-        }
-        input[type="text"]#todoInput::placeholder {
-            color: #9CA3AF;
-        }
-        input[type="text"]#todoInput:focus {
-            outline: none;
-            border-color: #3B82F6;
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-        }
-        .char-count {
-            position: absolute;
-            right: 12px;
-            top: 50%;
-            transform: translateY(-50%);
-            font-size: 12px;
-            color: #9CA3AF;
-            pointer-events: none;
-        }
-        select#categorySelect {
-            padding: 10px 12px;
-            border: 1px solid #E5E7EB;
-            border-radius: 8px;
-            background-color: #FFFFFF;
-            color: #111827;
-            font-size: 14px;
-            font-family: inherit;
-            cursor: pointer;
-            transition: border-color 0.15s ease;
-        }
-        select#categorySelect:focus {
-            outline: none;
-            border-color: #3B82F6;
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-        }
-        /* Buttons */
-        button#addBtn {
-            padding: 10px 20px;
-            background-color: #3B82F6;
-            color: #FFFFFF;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: 500;
-            font-family: inherit;
-            transition: background-color 0.15s ease, box-shadow 0.15s ease;
-            white-space: nowrap;
-        }
-        button#addBtn:hover {
-            background-color: #2563EB;
-        }
-        button#addBtn:focus-visible {
-            outline: 2px solid #3B82F6;
-            outline-offset: 2px;
-        }
-        button#addBtn:active {
-            background-color: #1D4ED8;
-        }
-        /* Todos Container */
-        #todosContainer {
-            min-height: 50px;
-        }
-        /* Todo Item */
-        .todo-item {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 12px;
-            background-color: #FFFFFF;
-            margin-bottom: 8px;
-            border: 1px solid #E5E7EB;
-            border-radius: 8px;
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-            transition: box-shadow 0.15s ease;
-        }
-        .todo-item:hover {
-            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
-        }
-        .todo-item input[type="checkbox"] {
-            width: 18px;
-            height: 18px;
-            cursor: pointer;
-            flex-shrink: 0;
-            accent-color: #3B82F6;
-        }
-        .todo-item input[type="checkbox"]:focus-visible {
-            outline: 2px solid #3B82F6;
-            outline-offset: 2px;
-        }
-        .todo-text {
-            flex: 1;
-            word-break: break-word;
-            color: #111827;
-            font-size: 14px;
-        }
-        .todo-text.completed {
-            text-decoration: line-through;
-            color: #9CA3AF;
-        }
-        .category-badge {
-            padding: 4px 8px;
-            border-radius: 12px;
-            color: #FFFFFF;
-            font-size: 12px;
-            font-weight: 600;
-            flex-shrink: 0;
-        }
-        .delete-btn {
-            padding: 6px 10px;
-            background-color: transparent;
-            color: #EF4444;
-            border: 1px solid #FEE2E2;
-            border-radius: 6px;
-            font-size: 12px;
-            font-weight: 500;
-            font-family: inherit;
-            cursor: pointer;
-            flex-shrink: 0;
-            transition: all 0.15s ease;
-        }
-        .delete-btn:hover {
-            background-color: #FEE2E2;
-            border-color: #FCA5A5;
-        }
-        .delete-btn:focus-visible {
-            outline: 2px solid #EF4444;
-            outline-offset: 2px;
-        }
-        /* Edit Input */
-        .edit-input {
-            flex: 1;
-            padding: 8px 10px;
-            border: 2px solid #3B82F6;
-            border-radius: 6px;
-            font-size: 14px;
-            font-family: inherit;
-            color: #111827;
-        }
-        .edit-input:focus {
-            outline: none;
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-        }
+        .input-section { display: flex; gap: 12px; margin-bottom: 24px; background: #FFF; padding: 16px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .input-wrapper { flex: 1; position: relative; }
+        input[type="text"]#todoInput { width: 100%; padding: 10px 40px 10px 12px; border: 1px solid #E5E7EB; border-radius: 8px; font-size: 14px; color: #111827; font-family: inherit; transition: border-color 0.15s ease, box-shadow 0.15s ease; }
+        input[type="text"]#todoInput:focus { outline: none; border-color: #3B82F6; box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
+        .char-count { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font-size: 12px; color: #9CA3AF; pointer-events: none; }
+        select#categorySelect { padding: 10px 12px; border: 1px solid #E5E7EB; border-radius: 8px; background: #FFF; color: #111827; font-size: 14px; font-family: inherit; cursor: pointer; }
+        select#categorySelect:focus { outline: none; border-color: #3B82F6; box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
+        button#addBtn { padding: 10px 20px; background: #3B82F6; color: #FFF; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 500; font-family: inherit; transition: background 0.15s ease; white-space: nowrap; }
+        button#addBtn:hover { background: #2563EB; }
+
+        /* Todo Items */
+        #todosContainer { min-height: 50px; }
+        .todo-item { display: flex; align-items: center; gap: 12px; padding: 12px; background: #FFF; margin-bottom: 8px; border: 1px solid #E5E7EB; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+        .todo-item:hover { box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+        .todo-item input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; accent-color: #3B82F6; }
+        .todo-text { flex: 1; color: #111827; font-size: 14px; word-break: break-word; }
+        .todo-text.completed { text-decoration: line-through; color: #9CA3AF; }
+        .category-badge { padding: 4px 8px; border-radius: 12px; color: #FFF; font-size: 12px; font-weight: 600; flex-shrink: 0; }
+        .delete-btn { padding: 6px 10px; background: transparent; color: #EF4444; border: 1px solid #FEE2E2; border-radius: 6px; font-size: 12px; font-weight: 500; font-family: inherit; cursor: pointer; transition: all 0.15s ease; }
+        .delete-btn:hover { background: #FEE2E2; border-color: #FCA5A5; }
+        .edit-input { flex: 1; padding: 8px 10px; border: 2px solid #3B82F6; border-radius: 6px; font-size: 14px; font-family: inherit; color: #111827; }
+
         /* Empty State */
-        .empty-message {
-            text-align: center;
-            color: #6B7280;
-            padding: 48px 24px;
-            font-size: 14px;
-            line-height: 1.6;
-            background-color: #FFFFFF;
-            border-radius: 12px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-        }
-        /* Error Message */
-        #errorContainer {
-            background-color: #FEE2E2;
-            border: 1px solid #FECACA;
-            color: #991B1B;
-            padding: 12px 16px;
-            border-radius: 8px;
-            margin-bottom: 24px;
-            font-size: 14px;
-            display: none;
-            font-weight: 500;
-        }
-        #errorContainer.show {
-            display: block;
-        }
-        /* Accessibility */
-        .sr-only {
-            position: absolute;
-            width: 1px;
-            height: 1px;
-            padding: 0;
-            margin: -1px;
-            overflow: hidden;
-            clip: rect(0, 0, 0, 0);
-            white-space: nowrap;
-            border-width: 0;
-        }
-        /* ===== Nav Tabs ===== */
-        .nav-tabs {
-            display: flex;
-            gap: 4px;
-            margin-bottom: 20px;
-            border-bottom: 2px solid #E5E7EB;
-            padding-bottom: 0;
-        }
-        .nav-tab {
-            padding: 10px 20px;
-            background-color: transparent;
-            border: none;
-            border-bottom: 2px solid transparent;
-            margin-bottom: -2px;
-            cursor: pointer;
-            font-size: 15px;
-            font-weight: 500;
-            color: #6B7280;
-            font-family: inherit;
-            transition: color 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
-            border-radius: 8px 8px 0 0;
-        }
-        .nav-tab:hover {
-            color: #3B82F6;
-            background-color: #EFF6FF;
-        }
-        .nav-tab.active {
-            background-color: #3B82F6;
-            color: #FFFFFF;
-            border-bottom-color: #3B82F6;
-        }
-        .nav-tab:focus-visible {
-            outline: 2px solid #3B82F6;
-            outline-offset: 2px;
-        }
-        /* ===== News Section ===== */
-        .news-subtabs {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 16px;
-            border-bottom: 2px solid #E5E7EB;
-            padding-bottom: 0;
-        }
-        .news-subtab {
-            padding: 10px 16px;
-            background-color: transparent;
-            border: none;
-            border-bottom: 2px solid transparent;
-            margin-bottom: -2px;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: 500;
-            color: #6B7280;
-            font-family: inherit;
-            transition: color 0.15s ease, border-color 0.15s ease;
-            border-radius: 8px 8px 0 0;
-        }
-        .news-subtab:hover {
-            color: #3B82F6;
-        }
-        .news-subtab.active {
-            color: #3B82F6;
-            border-bottom-color: #3B82F6;
-            background-color: #EFF6FF;
-        }
-        .news-subtab:focus-visible {
-            outline: 2px solid #3B82F6;
-            outline-offset: 2px;
-        }
-        #newsContainer {
-            min-height: 200px;
-        }
-        .bookmarks-header {
-            display: flex;
-            justify-content: flex-end;
-            margin-bottom: 12px;
-        }
-        .clear-all-btn {
-            padding: 8px 16px;
-            background-color: #FEE2E2;
-            color: #EF4444;
-            border: 1px solid #FECACA;
-            border-radius: 8px;
-            font-size: 13px;
-            font-weight: 500;
-            font-family: inherit;
-            cursor: pointer;
-            transition: background-color 0.15s ease;
-        }
-        .clear-all-btn:hover {
-            background-color: #FCA5A5;
-            border-color: #F87171;
-        }
-        .clear-all-btn:focus-visible {
-            outline: 2px solid #EF4444;
-            outline-offset: 2px;
-        }
+        .empty-message { text-align: center; color: #6B7280; padding: 48px 24px; font-size: 14px; line-height: 1.6; background: #FFF; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+
+        /* Error */
+        #errorContainer { background: #FEE2E2; border: 1px solid #FECACA; color: #991B1B; padding: 12px 16px; border-radius: 8px; margin-bottom: 24px; font-size: 14px; display: none; font-weight: 500; }
+        #errorContainer.show { display: block; }
+
+        /* Nav Tabs */
+        .nav-tabs { display: flex; gap: 4px; margin-bottom: 20px; border-bottom: 2px solid #E5E7EB; }
+        .nav-tab { padding: 10px 20px; background: transparent; border: none; border-bottom: 2px solid transparent; margin-bottom: -2px; cursor: pointer; font-size: 15px; font-weight: 500; color: #6B7280; font-family: inherit; transition: color 0.15s ease, border-color 0.15s ease; border-radius: 8px 8px 0 0; }
+        .nav-tab:hover { color: #3B82F6; background: #EFF6FF; }
+        .nav-tab.active { background: #3B82F6; color: #FFF; border-bottom-color: #3B82F6; }
+
+        /* News Subtabs */
+        .news-subtabs { display: flex; gap: 8px; margin-bottom: 16px; border-bottom: 2px solid #E5E7EB; }
+        .news-subtab { padding: 10px 16px; background: transparent; border: none; border-bottom: 2px solid transparent; margin-bottom: -2px; cursor: pointer; font-size: 14px; font-weight: 500; color: #6B7280; font-family: inherit; transition: color 0.15s ease, border-color 0.15s ease; border-radius: 8px 8px 0 0; }
+        .news-subtab:hover { color: #3B82F6; }
+        .news-subtab.active { color: #3B82F6; border-bottom-color: #3B82F6; background: #EFF6FF; }
+
+        #newsContainer { min-height: 200px; }
+        .bookmarks-header { display: flex; justify-content: flex-end; margin-bottom: 12px; }
+        .clear-all-btn { padding: 8px 16px; background: #FEE2E2; color: #EF4444; border: 1px solid #FECACA; border-radius: 8px; font-size: 13px; font-weight: 500; font-family: inherit; cursor: pointer; }
+        .clear-all-btn:hover { background: #FCA5A5; border-color: #F87171; }
 
         /* News Card */
-        .news-card {
-            display: flex;
-            gap: 14px;
-            background: #FFFFFF;
-            border: 1px solid #E5E7EB;
-            border-radius: 10px;
-            padding: 14px;
-            margin-bottom: 10px;
-            cursor: pointer;
-            transition: box-shadow 0.15s ease, transform 0.1s ease;
-            position: relative;
-        }
-        .news-card:hover {
-            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.09);
-            transform: translateY(-1px);
-        }
-        .news-card:focus-visible {
-            outline: 2px solid #3B82F6;
-            outline-offset: 2px;
-        }
-        .news-thumbnail {
-            width: 90px;
-            height: 74px;
-            border-radius: 8px;
-            object-fit: cover;
-            flex-shrink: 0;
-            background-color: #E5E7EB;
-        }
-        .news-thumbnail-placeholder {
-            width: 90px;
-            height: 74px;
-            border-radius: 8px;
-            background-color: #F3F4F6;
-            flex-shrink: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 26px;
-            color: #9CA3AF;
-        }
-        .news-content {
-            flex: 1;
-            min-width: 0;
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-            justify-content: center;
-        }
-        .news-title {
-            font-size: 14px;
-            font-weight: 600;
-            color: #111827;
-            line-height: 1.45;
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-        }
-        .news-meta {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            font-size: 12px;
-            color: #6B7280;
-        }
-        .news-source {
-            font-weight: 600;
-            color: #3B82F6;
-        }
-        .news-sep {
-            color: #D1D5DB;
-        }
-        .news-bookmark-btn {
-            position: absolute;
-            top: 12px;
-            right: 12px;
-            background: none;
-            border: none;
-            font-size: 20px;
-            cursor: pointer;
-            padding: 4px;
-            transition: transform 0.1s ease;
-        }
-        .news-bookmark-btn:hover {
-            transform: scale(1.15);
-        }
-        .news-bookmark-btn:focus-visible {
-            outline: 2px solid #3B82F6;
-            outline-offset: 2px;
-            border-radius: 4px;
-        }
-        .news-bookmark-btn.bookmarked {
-            filter: hue-rotate(0deg) saturate(1);
-        }
+        .news-card { display: flex; gap: 14px; background: #FFF; border: 1px solid #E5E7EB; border-radius: 10px; padding: 14px; margin-bottom: 10px; cursor: pointer; transition: box-shadow 0.15s ease, transform 0.1s ease; position: relative; }
+        .news-card:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.09); transform: translateY(-1px); }
+        .news-thumbnail { width: 90px; height: 74px; border-radius: 8px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 32px; background: #F3F4F6; }
+        .news-content { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; justify-content: center; }
+        .news-title { font-size: 14px; font-weight: 600; color: #111827; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .news-meta { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #6B7280; }
+        .news-source { font-weight: 600; color: #3B82F6; }
+        .news-sep { color: #D1D5DB; }
+        .news-bookmark-btn { position: absolute; top: 12px; right: 12px; background: none; border: none; font-size: 20px; cursor: pointer; padding: 4px; transition: transform 0.1s ease; }
+        .news-bookmark-btn:hover { transform: scale(1.15); }
 
-        /* Skeleton Loading */
-        .news-skeleton {
-            display: flex;
-            gap: 14px;
-            background: #FFFFFF;
-            border: 1px solid #E5E7EB;
-            border-radius: 10px;
-            padding: 14px;
-            margin-bottom: 10px;
-        }
-        .skeleton-thumb {
-            width: 90px;
-            height: 74px;
-            border-radius: 8px;
-            flex-shrink: 0;
-            background: linear-gradient(90deg, #E5E7EB 25%, #F3F4F6 50%, #E5E7EB 75%);
-            background-size: 200% 100%;
-            animation: shimmer 1.4s infinite;
-        }
-        .skeleton-content {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            justify-content: center;
-        }
-        .skeleton-line {
-            height: 12px;
-            border-radius: 4px;
-            background: linear-gradient(90deg, #E5E7EB 25%, #F3F4F6 50%, #E5E7EB 75%);
-            background-size: 200% 100%;
-            animation: shimmer 1.4s infinite;
-        }
-        .skeleton-line.w-full  { width: 100%; }
-        .skeleton-line.w-3-4   { width: 75%; }
-        .skeleton-line.w-1-3   { width: 36%; }
-        @keyframes shimmer {
-            0%   { background-position: 200% 0; }
-            100% { background-position: -200% 0; }
-        }
+        /* Skeleton */
+        .news-skeleton { display: flex; gap: 14px; background: #FFF; border: 1px solid #E5E7EB; border-radius: 10px; padding: 14px; margin-bottom: 10px; }
+        .skeleton-thumb { width: 90px; height: 74px; border-radius: 8px; flex-shrink: 0; background: linear-gradient(90deg, #E5E7EB 25%, #F3F4F6 50%, #E5E7EB 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; }
+        .skeleton-content { flex: 1; display: flex; flex-direction: column; gap: 10px; }
+        .skeleton-line { height: 12px; border-radius: 4px; background: linear-gradient(90deg, #E5E7EB 25%, #F3F4F6 50%, #E5E7EB 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; }
+        .skeleton-line.w-full { width: 100%; }
+        .skeleton-line.w-3-4 { width: 75%; }
+        .skeleton-line.w-1-3 { width: 36%; }
+        @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 
-        /* News State: empty / error / key-warning */
-        .news-state {
-            text-align: center;
-            padding: 52px 24px;
-            background: #FFFFFF;
-            border-radius: 12px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-        }
-        .news-state .state-icon {
-            font-size: 38px;
-            margin-bottom: 12px;
-        }
-        .news-state .state-message {
-            font-size: 14px;
-            color: #6B7280;
-            line-height: 1.7;
-            margin-bottom: 20px;
-        }
-        .news-retry-btn {
-            padding: 9px 22px;
-            background: #3B82F6;
-            color: #FFFFFF;
-            border: none;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: 500;
-            font-family: inherit;
-            cursor: pointer;
-            transition: background-color 0.15s ease;
-        }
-        .news-retry-btn:hover  { background: #2563EB; }
-        .news-retry-btn:active { background: #1D4ED8; }
-        .news-retry-btn:focus-visible {
-            outline: 2px solid #3B82F6;
-            outline-offset: 2px;
-        }
-        .news-key-warning {
-            background: #FFFBEB;
-            border: 1px solid #FCD34D;
-            border-radius: 10px;
-            padding: 18px 20px;
-            font-size: 14px;
-            color: #92400E;
-            line-height: 1.8;
-        }
-        .api-setup-form {
-            text-align: left;
-            margin-top: 20px;
-            padding: 20px;
-            background: #F9FAFB;
-            border-radius: 10px;
-            border: 1px solid #E5E7EB;
-        }
-        .api-setup-step {
-            margin-bottom: 16px;
-        }
-        .api-setup-step:last-child {
-            margin-bottom: 0;
-        }
-        .api-setup-step p {
-            margin: 0;
-            font-size: 14px;
-            color: #111827;
-            line-height: 1.6;
-        }
-        .api-setup-step strong {
-            font-weight: 600;
-        }
-        .api-change-btn {
-            padding: 9px 22px;
-            background: #F3F4F6;
-            color: #6B7280;
-            border: 1px solid #D1D5DB;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: 500;
-            font-family: inherit;
-            cursor: pointer;
-            transition: background-color 0.15s ease;
-        }
-        .api-change-btn:hover {
-            background: #E5E7EB;
-            border-color: #BFDBFE;
-        }
+        /* State Messages */
+        .news-state { text-align: center; padding: 52px 24px; background: #FFF; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .state-icon { font-size: 38px; margin-bottom: 12px; }
+        .state-message { font-size: 14px; color: #6B7280; line-height: 1.7; margin-bottom: 20px; }
+        .news-retry-btn { padding: 9px 22px; background: #3B82F6; color: #FFF; border: none; border-radius: 8px; font-size: 14px; font-weight: 500; font-family: inherit; cursor: pointer; transition: background 0.15s ease; }
+        .news-retry-btn:hover { background: #2563EB; }
 
-        /* ===== News Widget (메인 화면) ===== */
-        .news-widget {
-            background: #FFFFFF;
-            border-radius: 12px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-            padding: 16px;
-            margin-bottom: 24px;
-        }
-        .widget-title {
-            font-size: 14px;
-            font-weight: 600;
-            color: #111827;
-            margin-bottom: 12px;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-        .widget-news-item {
-            padding: 10px 0;
-            border-bottom: 1px solid #E5E7EB;
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            gap: 8px;
-        }
-        .widget-news-item:last-child {
-            border-bottom: none;
-        }
-        .widget-news-title {
-            flex: 1;
-            font-size: 13px;
-            color: #111827;
-            line-height: 1.4;
-            cursor: pointer;
-            transition: color 0.15s ease;
-            word-break: break-word;
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-        }
-        .widget-news-title:hover {
-            color: #3B82F6;
-        }
-        .widget-news-source {
-            font-size: 11px;
-            color: #9CA3AF;
-            white-space: nowrap;
-            flex-shrink: 0;
-        }
-        .widget-footer {
-            margin-top: 12px;
-            padding-top: 12px;
-            border-top: 1px solid #E5E7EB;
-            text-align: right;
-        }
-        .widget-more-link {
-            font-size: 13px;
-            color: #3B82F6;
-            cursor: pointer;
-            font-weight: 500;
-            transition: color 0.15s ease;
-        }
-        .widget-more-link:hover {
-            color: #2563EB;
-        }
-        .widget-skeleton {
-            padding: 8px 0;
-            height: 40px;
-            background: linear-gradient(90deg, #E5E7EB 25%, #F3F4F6 50%, #E5E7EB 75%);
-            background-size: 200% 100%;
-            animation: shimmer 1.4s infinite;
-            border-radius: 4px;
-            margin-bottom: 8px;
-        }
-        .widget-skeleton:last-child {
-            margin-bottom: 0;
-        }
+        /* News Widget */
+        .news-widget { background: #FFF; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); padding: 16px; margin-bottom: 24px; }
+        .widget-title { font-size: 14px; font-weight: 600; color: #111827; margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
+        .widget-news-item { padding: 10px 0; border-bottom: 1px solid #E5E7EB; display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+        .widget-news-item:last-child { border-bottom: none; }
+        .widget-news-title { flex: 1; font-size: 13px; color: #111827; line-height: 1.4; cursor: pointer; transition: color 0.15s ease; word-break: break-word; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .widget-news-title:hover { color: #3B82F6; }
+        .widget-news-source { font-size: 11px; color: #9CA3AF; white-space: nowrap; flex-shrink: 0; }
+        .widget-footer { margin-top: 12px; padding-top: 12px; border-top: 1px solid #E5E7EB; text-align: right; }
+        .widget-more-link { font-size: 13px; color: #3B82F6; cursor: pointer; font-weight: 500; transition: color 0.15s ease; }
+        .widget-more-link:hover { color: #2563EB; }
+        .widget-skeleton { padding: 8px 0; height: 40px; background: linear-gradient(90deg, #E5E7EB 25%, #F3F4F6 50%, #E5E7EB 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; border-radius: 4px; margin-bottom: 8px; }
 
         /* Responsive */
         @media (max-width: 480px) {
-            body {
-                padding: 12px;
-            }
-            h1 {
-                font-size: 18px;
-            }
-            .input-section {
-                flex-wrap: wrap;
-                gap: 8px;
-            }
-            .input-wrapper {
-                flex: 0 0 calc(100% - 60px);
-            }
-            select#categorySelect {
-                flex: 0 0 calc(50% - 4px);
-            }
-            button#addBtn {
-                flex: 0 0 calc(50% - 4px);
-            }
-            .filter-tabs {
-                gap: 6px;
-            }
-            .filter-tab {
-                padding: 6px 12px;
-                font-size: 13px;
-            }
-            .todo-item {
-                gap: 8px;
-            }
-            .category-badge {
-                padding: 3px 6px;
-                font-size: 11px;
-            }
+            body { padding: 12px; }
+            h1 { font-size: 18px; }
+            .input-section { flex-wrap: wrap; gap: 8px; }
+            .input-wrapper { flex: 0 0 calc(100% - 60px); }
+            select#categorySelect { flex: 0 0 calc(50% - 4px); }
+            button#addBtn { flex: 0 0 calc(50% - 4px); }
         }
     </style>
 </head>
@@ -771,7 +153,7 @@
     <div id="app">
         <h1>할 일 관리</h1>
 
-        <!-- ===== 탭 네비게이션 ===== -->
+        <!-- 탭 네비게이션 -->
         <nav class="nav-tabs" aria-label="메인 탭">
             <button class="nav-tab active" data-tab="todo" aria-selected="true">📋 할 일</button>
             <button class="nav-tab" data-tab="news" aria-selected="false">📰 뉴스</button>
@@ -779,23 +161,15 @@
 
         <div id="errorContainer" role="alert" aria-live="polite"></div>
 
-        <!-- ===== 할 일 탭 ===== -->
+        <!-- 할 일 탭 -->
         <div id="tab-todo">
             <div id="statsContainer"></div>
-
-            <!-- ===== 뉴스 위젯 ===== -->
             <div id="newsWidgetContainer" style="display:none;"></div>
 
             <form class="input-section" onsubmit="return false;">
                 <div class="input-wrapper">
                     <label for="todoInput" class="sr-only">할 일 입력</label>
-                    <input
-                        type="text"
-                        id="todoInput"
-                        placeholder="할 일을 입력하세요..."
-                        maxlength="100"
-                        autocomplete="off"
-                    >
+                    <input type="text" id="todoInput" placeholder="할 일을 입력하세요..." maxlength="100" autocomplete="off">
                     <span class="char-count" id="charCount" aria-live="polite">0/100</span>
                 </div>
                 <label for="categorySelect" class="sr-only">카테고리</label>
@@ -809,11 +183,10 @@
             </form>
 
             <div class="filter-tabs" id="filterTabs" role="tablist"></div>
-
             <div id="todosContainer"></div>
         </div>
 
-        <!-- ===== 뉴스 탭 ===== -->
+        <!-- 뉴스 탭 -->
         <div id="tab-news" style="display:none;">
             <div class="news-subtabs">
                 <button class="news-subtab active" data-subtab="news-feed">📰 뉴스</button>
@@ -832,10 +205,13 @@
     </div>
 
     <script>
-        // Created: 2026-05-27
-
         // ===== Config =====
         const STORAGE_KEY = 'todos_v1';
+        const BOOKMARKS_STORAGE_KEY = 'news_bookmarks_v1';
+        const API_KEY_STORAGE = 'news_api_key_v1';
+        const NEWS_CACHE_PREFIX = 'news_cache_';
+        const NEWS_CACHE_TTL = 15 * 60 * 1000;
+
         const categoryConfig = {
             work: { name: '업무', color: '#3B82F6' },
             personal: { name: '개인', color: '#10B981' },
@@ -843,84 +219,41 @@
             class: { name: '수업', color: '#F59E0B' }
         };
 
-        let currentFilter = 'all';
-
-        // ===== News Config =====
-        const BOOKMARKS_STORAGE_KEY = 'news_bookmarks_v1';
-        const API_KEY_STORAGE = 'news_api_key_v1';
-        const NEWS_CACHE_PREFIX = 'news_cache_';
-        const NEWS_CACHE_TTL = 15 * 60 * 1000; // 15분
-
-        // 샘플 뉴스 데이터 (API 호출 불필요)
-        const SAMPLE_NEWS_DATA = [
-            {
-                title: "AI 기술이 일자리 시장을 어떻게 변화시키고 있나?",
-                description: "인공지능 기술의 발전에 따라 직업 시장이 급속도로 변화하고 있습니다.",
-                url: "https://example.com/ai-jobs",
-                urlToImage: "https://via.placeholder.com/300x200?text=AI+Technology",
-                publishedAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-                source: { name: "테크 뉴스" }
-            },
-            {
-                title: "2026년 상반기 경제 전망",
-                description: "국내 및 글로벌 경제 상황과 향후 6개월 전망을 분석합니다.",
-                url: "https://example.com/economy-2026",
-                urlToImage: "https://via.placeholder.com/300x200?text=Economy",
-                publishedAt: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
-                source: { name: "금융뉴스" }
-            },
-            {
-                title: "클라우드 기술의 미래 트렌드",
-                description: "엔터프라이즈 클라우드 기술이 어떻게 진화하고 있는지 살펴봅니다.",
-                url: "https://example.com/cloud-trends",
-                urlToImage: "https://via.placeholder.com/300x200?text=Cloud",
-                publishedAt: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
-                source: { name: "IT 매거진" }
-            },
-            {
-                title: "스타트업 생태계의 변화",
-                description: "최근 스타트업 펀딩 시장의 동향과 변화를 분석합니다.",
-                url: "https://example.com/startup-trends",
-                urlToImage: "https://via.placeholder.com/300x200?text=Startup",
-                publishedAt: new Date(Date.now() - 8 * 60 * 60 * 1000).toISOString(),
-                source: { name: "벤처뉴스" }
-            },
-            {
-                title: "웹 개발자를 위한 새로운 도구들",
-                description: "2026년에 주목할 웹 개발 도구와 프레임워크를 소개합니다.",
-                url: "https://example.com/web-tools",
-                urlToImage: "https://via.placeholder.com/300x200?text=Web+Dev",
-                publishedAt: new Date(Date.now() - 10 * 60 * 60 * 1000).toISOString(),
-                source: { name: "개발자 블로그" }
-            }
+        // 샘플 뉴스 데이터 (API 불필요)
+        const SAMPLE_NEWS = [
+            { title: "AI 기술이 일자리 시장을 어떻게 변화시키고 있나?", description: "인공지능 기술의 발전에 따라 직업 시장이 급속도로 변화하고 있습니다.", url: "https://example.com/ai-jobs", urlToImage: "📱", publishedAt: new Date(Date.now() - 2*3600000).toISOString(), source: { name: "테크 뉴스" } },
+            { title: "2026년 상반기 경제 전망", description: "국내 및 글로벌 경제 상황과 향후 6개월 전망을 분석합니다.", url: "https://example.com/economy", urlToImage: "📈", publishedAt: new Date(Date.now() - 4*3600000).toISOString(), source: { name: "금융뉴스" } },
+            { title: "클라우드 기술의 미래 트렌드", description: "엔터프라이즈 클라우드 기술이 어떻게 진화하고 있는지 살펴봅니다.", url: "https://example.com/cloud", urlToImage: "☁️", publishedAt: new Date(Date.now() - 6*3600000).toISOString(), source: { name: "IT 매거진" } },
+            { title: "스타트업 생태계의 변화", description: "최근 스타트업 펀딩 시장의 동향과 변화를 분석합니다.", url: "https://example.com/startup", urlToImage: "🚀", publishedAt: new Date(Date.now() - 8*3600000).toISOString(), source: { name: "벤처뉴스" } },
+            { title: "웹 개발자를 위한 새로운 도구들", description: "2026년에 주목할 웹 개발 도구와 프레임워크를 소개합니다.", url: "https://example.com/webdev", urlToImage: "💻", publishedAt: new Date(Date.now() - 10*3600000).toISOString(), source: { name: "개발자 블로그" } }
         ];
 
+        let currentFilter = 'all';
         let currentNewsSubtab = 'news-feed';
 
         // ===== Utility =====
-        function getCategoryName(category) {
-            return categoryConfig[category]?.name || category;
-        }
-
-        function getCategoryColor(category) {
-            return categoryConfig[category]?.color || '#999';
-        }
-
         function escapeHtml(text) {
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
         }
 
-        // ===== Data Layer =====
+        function formatTimeAgo(isoString) {
+            const diff = Date.now() - new Date(isoString).getTime();
+            const minutes = Math.floor(diff / 60000);
+            if (minutes < 60) return minutes + '분 전';
+            const hours = Math.floor(minutes / 60);
+            if (hours < 24) return hours + '시간 전';
+            return Math.floor(hours / 24) + '일 전';
+        }
+
+        // ===== Storage =====
         function loadTodos() {
             try {
                 const stored = localStorage.getItem(STORAGE_KEY);
-                if (!stored) return [];
-                return JSON.parse(stored);
-            } catch (error) {
-                console.error('Failed to load todos:', error);
-                showErrorMessage('데이터를 불러오지 못했습니다. 새로 시작합니다.');
+                return stored ? JSON.parse(stored) : [];
+            } catch (e) {
+                console.error('Failed to load todos:', e);
                 return [];
             }
         }
@@ -928,34 +261,93 @@
         function saveTodos(todos) {
             try {
                 localStorage.setItem(STORAGE_KEY, JSON.stringify(todos));
-            } catch (error) {
-                console.error('Failed to save todos:', error);
-                showErrorMessage('데이터 저장에 실패했습니다.');
+            } catch (e) {
+                console.error('Failed to save todos:', e);
             }
         }
 
+        function loadBookmarks() {
+            try {
+                const stored = localStorage.getItem(BOOKMARKS_STORAGE_KEY);
+                return stored ? JSON.parse(stored) : [];
+            } catch (e) {
+                return [];
+            }
+        }
+
+        function saveBookmarks(bookmarks) {
+            try {
+                localStorage.setItem(BOOKMARKS_STORAGE_KEY, JSON.stringify(bookmarks));
+            } catch (e) {
+                console.error('Failed to save bookmarks:', e);
+            }
+        }
+
+        function getNewsCache(category) {
+            const key = NEWS_CACHE_PREFIX + category;
+            const cached = sessionStorage.getItem(key);
+            if (!cached) return null;
+            try {
+                const data = JSON.parse(cached);
+                if (Date.now() - data.timestamp > NEWS_CACHE_TTL) {
+                    sessionStorage.removeItem(key);
+                    return null;
+                }
+                return data.articles;
+            } catch (e) {
+                return null;
+            }
+        }
+
+        function setNewsCache(category, articles) {
+            const key = NEWS_CACHE_PREFIX + category;
+            try {
+                sessionStorage.setItem(key, JSON.stringify({ timestamp: Date.now(), articles }));
+            } catch (e) {}
+        }
+
+        function isBookmarked(url) {
+            return loadBookmarks().some(b => b.url === url);
+        }
+
+        function toggleBookmark(article) {
+            const bookmarks = loadBookmarks();
+            const index = bookmarks.findIndex(b => b.url === article.url);
+            if (index > -1) {
+                bookmarks.splice(index, 1);
+            } else {
+                bookmarks.push({
+                    id: crypto.randomUUID(),
+                    title: article.title,
+                    source: article.source?.name || '출처 불명',
+                    url: article.url,
+                    urlToImage: article.urlToImage,
+                    publishedAt: article.publishedAt,
+                    savedAt: Date.now()
+                });
+            }
+            saveBookmarks(bookmarks);
+        }
+
+        // ===== Todo Functions =====
         function showErrorMessage(message) {
             const container = document.getElementById('errorContainer');
             container.textContent = message;
             container.classList.add('show');
-            setTimeout(() => {
-                container.classList.remove('show');
-            }, 3000);
+            setTimeout(() => container.classList.remove('show'), 3000);
         }
 
         function addTodo(text, category) {
             if (!text.trim()) return;
-
             const todos = loadTodos();
-            const newTodo = {
+            todos.push({
                 id: crypto.randomUUID(),
                 text: text.trim(),
                 category,
                 completed: false,
                 createdAt: Date.now(),
                 updatedAt: Date.now()
-            };
-            todos.push(newTodo);
+            });
             saveTodos(todos);
             renderTodos();
         }
@@ -976,7 +368,6 @@
                 renderTodos();
                 return;
             }
-
             const todos = loadTodos();
             const todo = todos.find(t => t.id === id);
             if (todo) {
@@ -989,35 +380,23 @@
 
         function deleteTodo(id) {
             const todos = loadTodos();
-            const filtered = todos.filter(t => t.id !== id);
-            saveTodos(filtered);
+            saveTodos(todos.filter(t => t.id !== id));
             renderTodos();
         }
 
-        // ===== Stats Layer =====
         function getStats() {
             const todos = loadTodos();
-            const stats = {
-                total: todos.length,
-                completed: todos.filter(t => t.completed).length,
-                byCategory: {}
-            };
-
+            const stats = { total: todos.length, completed: todos.filter(t => t.completed).length, byCategory: {} };
             Object.keys(categoryConfig).forEach(cat => {
                 const items = todos.filter(t => t.category === cat);
-                stats.byCategory[cat] = {
-                    total: items.length,
-                    completed: items.filter(t => t.completed).length
-                };
+                stats.byCategory[cat] = { total: items.length, completed: items.filter(t => t.completed).length };
             });
-
             return stats;
         }
 
         function renderStats() {
             const stats = getStats();
             const percent = stats.total === 0 ? 0 : Math.round((stats.completed / stats.total) * 100);
-
             const categoryStatsHtml = Object.entries(categoryConfig)
                 .map(([key, { name }]) => {
                     const { total, completed } = stats.byCategory[key];
@@ -1025,65 +404,26 @@
                 })
                 .filter(Boolean)
                 .join(' | ');
-
-            const html = `
+            document.getElementById('statsContainer').innerHTML = `
                 <div class="progress-section">
                     <div class="progress-summary">
                         <div>전체: ${stats.completed}개 중 ${stats.total}개 완료</div>
-                        <div class="progress-bar">
-                            <div class="progress-fill" style="width: ${percent}%"></div>
-                        </div>
+                        <div class="progress-bar"><div class="progress-fill" style="width: ${percent}%"></div></div>
                         <div class="progress-percent">${percent}%</div>
                     </div>
                     ${categoryStatsHtml ? `<div class="category-stats">${categoryStatsHtml}</div>` : ''}
                 </div>
             `;
-
-            document.getElementById('statsContainer').innerHTML = html;
         }
 
         function renderFilterTabs() {
-            const filters = [
-                { key: 'all', name: '전체' },
-                ...Object.entries(categoryConfig).map(([key, { name }]) => ({ key, name }))
-            ];
-
-            const html = filters
-                .map(f => `
-                    <button
-                        class="filter-tab ${f.key === currentFilter ? 'active' : ''}"
-                        data-filter="${f.key}"
-                        role="tab"
-                        aria-selected="${f.key === currentFilter ? 'true' : 'false'}"
-                    >
-                        ${f.name}
-                    </button>
-                `)
-                .join('');
-
+            const filters = [{ key: 'all', name: '전체' }, ...Object.entries(categoryConfig).map(([key, { name }]) => ({ key, name }))];
+            const html = filters.map(f => `<button class="filter-tab ${f.key === currentFilter ? 'active' : ''}" data-filter="${f.key}" role="tab" aria-selected="${f.key === currentFilter}">${f.name}</button>`).join('');
             const container = document.getElementById('filterTabs');
             container.innerHTML = html;
-
             container.querySelectorAll('.filter-tab').forEach(tab => {
-                tab.addEventListener('click', () => {
-                    setFilter(tab.dataset.filter);
-                });
+                tab.addEventListener('click', () => setFilter(tab.dataset.filter));
             });
-        }
-
-        // ===== Render Layer =====
-        function getTodos(filter) {
-            const todos = loadTodos();
-            if (filter === 'all') return todos;
-            return todos.filter(t => t.category === filter);
-        }
-
-        function getEmptyMessage() {
-            if (currentFilter === 'all') {
-                return '할 일이 없어요. 위에서 첫 번째 할 일을 추가해보세요.';
-            }
-            const catName = getCategoryName(currentFilter);
-            return `${catName}에 할 일이 없어요.<br>전체 탭에서 추가하거나, 카테고리를 변경해보세요.`;
         }
 
         function setFilter(filter) {
@@ -1092,232 +432,82 @@
             renderTodos();
         }
 
+        function getTodos(filter) {
+            const todos = loadTodos();
+            return filter === 'all' ? todos : todos.filter(t => t.category === filter);
+        }
+
         function renderTodos() {
             const todos = getTodos(currentFilter);
             const container = document.getElementById('todosContainer');
-
             if (todos.length === 0) {
-                container.innerHTML = `<div class="empty-message">${getEmptyMessage()}</div>`;
+                container.innerHTML = `<div class="empty-message">${currentFilter === 'all' ? '할 일이 없어요.' : '이 카테고리에 할 일이 없어요.'}</div>`;
                 renderStats();
+                loadNewsWidget();
                 return;
             }
-
             const html = todos.map(todo => {
-                const catName = getCategoryName(todo.category);
-                const catColor = getCategoryColor(todo.category);
-                const displayText = escapeHtml(todo.text);
+                const catColor = categoryConfig[todo.category]?.color || '#999';
+                const catName = categoryConfig[todo.category]?.name || todo.category;
                 return `
                     <div class="todo-item">
-                        <input
-                            type="checkbox"
-                            ${todo.completed ? 'checked' : ''}
-                            data-id="${todo.id}"
-                            class="todo-checkbox"
-                            aria-label="${displayText} - ${todo.completed ? '완료됨' : '미완료'}"
-                        >
-                        <span class="todo-text ${todo.completed ? 'completed' : ''}" data-id="${todo.id}">${displayText}</span>
-                        <span class="category-badge" style="background-color: ${catColor}" aria-label="${catName} 카테고리">${catName}</span>
-                        <button class="delete-btn" data-id="${todo.id}" aria-label="'${displayText}' 항목 삭제">삭제</button>
+                        <input type="checkbox" ${todo.completed ? 'checked' : ''} data-id="${todo.id}" class="todo-checkbox" aria-label="${escapeHtml(todo.text)}">
+                        <span class="todo-text ${todo.completed ? 'completed' : ''}" data-id="${todo.id}">${escapeHtml(todo.text)}</span>
+                        <span class="category-badge" style="background-color: ${catColor}">${catName}</span>
+                        <button class="delete-btn" data-id="${todo.id}">삭제</button>
                     </div>
                 `;
             }).join('');
-
             container.innerHTML = html;
-
-            container.querySelectorAll('.todo-checkbox').forEach(checkbox => {
-                checkbox.addEventListener('change', (e) => {
-                    toggleTodo(e.target.dataset.id);
-                });
-            });
-
-            container.querySelectorAll('.delete-btn').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    deleteTodo(e.target.dataset.id);
-                });
-            });
-
+            container.querySelectorAll('.todo-checkbox').forEach(cb => cb.addEventListener('change', e => toggleTodo(e.target.dataset.id)));
+            container.querySelectorAll('.delete-btn').forEach(btn => btn.addEventListener('click', e => deleteTodo(e.target.dataset.id)));
             container.querySelectorAll('.todo-text').forEach(span => {
-                span.addEventListener('dblclick', (e) => {
-                    const id = e.target.dataset.id;
+                span.addEventListener('dblclick', e => {
                     const todos = loadTodos();
-                    const todo = todos.find(t => t.id === id);
+                    const todo = todos.find(t => t.id === e.target.dataset.id);
                     if (todo) {
-                        enterEditMode(id, todo.text, span);
+                        const input = document.createElement('input');
+                        input.type = 'text';
+                        input.value = todo.text;
+                        input.className = 'edit-input';
+                        input.maxLength = '100';
+                        e.target.replaceWith(input);
+                        input.focus();
+                        input.select();
+                        const finish = (save) => {
+                            if (save && input.value.trim() && input.value !== todo.text) {
+                                updateTodo(todo.id, input.value);
+                            } else {
+                                renderTodos();
+                            }
+                        };
+                        input.addEventListener('keydown', e => {
+                            if (e.key === 'Enter') { e.preventDefault(); finish(true); }
+                            if (e.key === 'Escape') { e.preventDefault(); finish(false); }
+                        });
+                        input.addEventListener('blur', () => finish(true));
                     }
                 });
             });
-
             renderStats();
             loadNewsWidget();
         }
 
-        function enterEditMode(id, originalText, textSpan) {
-            const input = document.createElement('input');
-            input.type = 'text';
-            input.value = originalText;
-            input.className = 'edit-input';
-            input.maxLength = '100';
-
-            textSpan.replaceWith(input);
-            input.focus();
-            input.select();
-
-            function finishEdit(shouldSave) {
-                if (shouldSave && input.value.trim() && input.value.trim() !== originalText) {
-                    updateTodo(id, input.value);
-                } else {
-                    renderTodos();
-                }
+        // ===== News Functions =====
+        async function fetchNews() {
+            const cached = getNewsCache('general');
+            if (cached) {
+                console.log('[News] Using cached articles');
+                return cached;
             }
-
-            input.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    finishEdit(true);
-                }
-                if (e.key === 'Escape') {
-                    e.preventDefault();
-                    finishEdit(false);
-                }
-            });
-
-            input.addEventListener('blur', () => {
-                finishEdit(true);
-            });
-        }
-
-        // ===== API Key Management =====
-        function getApiKey() {
-            return localStorage.getItem(API_KEY_STORAGE) || '';
-        }
-
-        function setApiKey(key) {
-            localStorage.setItem(API_KEY_STORAGE, key.trim());
-        }
-
-        function clearApiKey() {
-            localStorage.removeItem(API_KEY_STORAGE);
-        }
-
-        // ===== Bookmark Data Layer =====
-        function loadBookmarks() {
-            try {
-                const stored = localStorage.getItem(BOOKMARKS_STORAGE_KEY);
-                return stored ? JSON.parse(stored) : [];
-            } catch (error) {
-                console.error('Failed to load bookmarks:', error);
-                return [];
-            }
-        }
-
-        function saveBookmarks(bookmarks) {
-            try {
-                localStorage.setItem(BOOKMARKS_STORAGE_KEY, JSON.stringify(bookmarks));
-            } catch (error) {
-                console.error('Failed to save bookmarks:', error);
-            }
-        }
-
-        function isBookmarked(url) {
-            const bookmarks = loadBookmarks();
-            return bookmarks.some(b => b.url === url);
-        }
-
-        function toggleBookmark(article) {
-            const bookmarks = loadBookmarks();
-            const index = bookmarks.findIndex(b => b.url === article.url);
-
-            if (index > -1) {
-                bookmarks.splice(index, 1);
-            } else {
-                const bookmark = {
-                    id: crypto.randomUUID(),
-                    title: article.title,
-                    source: article.source?.name || '출처 불명',
-                    url: article.url,
-                    urlToImage: article.urlToImage || null,
-                    publishedAt: article.publishedAt,
-                    savedAt: Date.now()
-                };
-                bookmarks.push(bookmark);
-            }
-
-            saveBookmarks(bookmarks);
-        }
-
-        // ===== News Utility =====
-        function formatTimeAgo(isoString) {
-            const diff = Date.now() - new Date(isoString).getTime();
-            const minutes = Math.floor(diff / 60000);
-            if (minutes < 60) return minutes + '분 전';
-            const hours = Math.floor(minutes / 60);
-            if (hours < 24) return hours + '시간 전';
-            return Math.floor(hours / 24) + '일 전';
-        }
-
-        // ===== News Cache Layer =====
-        function getCacheKey(category) {
-            return NEWS_CACHE_PREFIX + category;
-        }
-
-        function getNewsCache(category) {
-            const key = getCacheKey(category);
-            const cached = sessionStorage.getItem(key);
-            if (!cached) return null;
-
-            try {
-                const data = JSON.parse(cached);
-                const now = Date.now();
-                if (now - data.timestamp > NEWS_CACHE_TTL) {
-                    sessionStorage.removeItem(key);
-                    return null;
-                }
-                return data.articles;
-            } catch (error) {
-                console.error('Cache parse error:', error);
-                sessionStorage.removeItem(key);
-                return null;
-            }
-        }
-
-        function setNewsCache(category, articles) {
-            const key = getCacheKey(category);
-            try {
-                const data = {
-                    timestamp: Date.now(),
-                    articles: articles
-                };
-                sessionStorage.setItem(key, JSON.stringify(data));
-            } catch (error) {
-                console.error('Cache set error:', error);
-            }
-        }
-
-        // ===== News Data Layer =====
-        async function fetchNews(category = 'general') {
-            // 캐시 확인
-            const cachedArticles = getNewsCache(category);
-            if (cachedArticles) {
-                console.log('[News] Using cached articles for:', category);
-                return cachedArticles;
-            }
-
-            console.log('[News] Loading news data...');
-
-            // 시뮬레이션 지연 (실제 API 호출처럼 보이기 위해)
             await new Promise(resolve => setTimeout(resolve, 500));
-
-            // 샘플 데이터 사용 (API 호출 없음)
-            const articles = [...SAMPLE_NEWS_DATA];
-
-            console.log('[News] News data loaded:', articles.length, 'articles');
-            setNewsCache(category, articles);
+            const articles = [...SAMPLE_NEWS];
+            setNewsCache('general', articles);
             return articles;
         }
 
-        // ===== News Render Layer =====
         function renderNewsSkeleton() {
-            const skeletonHtml = Array.from({ length: 3 }, () => `
+            document.getElementById('newsContainer').innerHTML = Array(3).fill().map(() => `
                 <div class="news-skeleton" aria-hidden="true">
                     <div class="skeleton-thumb"></div>
                     <div class="skeleton-content">
@@ -1327,348 +517,139 @@
                     </div>
                 </div>
             `).join('');
-            document.getElementById('newsContainer').innerHTML = skeletonHtml;
         }
 
         function renderNewsList(articles) {
             const container = document.getElementById('newsContainer');
-
-            if (articles.length === 0) {
-                container.innerHTML = `
-                    <div class="news-state">
-                        <div class="state-icon">📭</div>
-                        <div class="state-message">현재 표시할 뉴스가 없습니다.</div>
-                    </div>
-                `;
+            if (!articles?.length) {
+                container.innerHTML = '<div class="news-state"><div class="state-icon">📭</div><div class="state-message">뉴스가 없습니다.</div></div>';
                 return;
             }
-
             const html = articles.map(article => {
-                const title   = escapeHtml(article.title  || '제목 없음');
-                const source  = escapeHtml(article.source?.name || '출처 불명');
-                const timeAgo = article.publishedAt ? formatTimeAgo(article.publishedAt) : '';
-                const url     = escapeHtml(article.url || '#');
                 const isMarked = isBookmarked(article.url);
-                const bookmarkIcon = isMarked ? '🔖' : '🔖';
-                const bookmarkClass = isMarked ? 'bookmarked' : '';
-
-                const thumbHtml = article.urlToImage
-                    ? `<img
-                            class="news-thumbnail"
-                            src="${escapeHtml(article.urlToImage)}"
-                            alt=""
-                            loading="lazy"
-                            onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'news-thumbnail-placeholder',textContent:'📰'}))"
-                        >`
-                    : `<div class="news-thumbnail-placeholder" aria-hidden="true">📰</div>`;
-
+                const bookmarkIcon = '🔖';
                 return `
-                    <div
-                        class="news-card"
-                        role="article"
-                        tabindex="0"
-                        data-url="${url}"
-                        aria-label="${title}"
-                    >
-                        <button
-                            class="news-bookmark-btn ${bookmarkClass}"
-                            data-url="${url}"
-                            aria-label="${isMarked ? '북마크 제거' : '북마크 추가'}"
-                            title="${isMarked ? '북마크 제거' : '북마크 추가'}"
-                        >${bookmarkIcon}</button>
-                        ${thumbHtml}
+                    <div class="news-card" role="article" tabindex="0" data-url="${escapeHtml(article.url)}" aria-label="${escapeHtml(article.title)}">
+                        <button class="news-bookmark-btn ${isMarked ? 'bookmarked' : ''}" data-url="${escapeHtml(article.url)}" aria-label="${isMarked ? '북마크 제거' : '북마크 추가'}">${bookmarkIcon}</button>
+                        <div class="news-thumbnail">${article.urlToImage || '📰'}</div>
                         <div class="news-content">
-                            <div class="news-title">${title}</div>
+                            <div class="news-title">${escapeHtml(article.title)}</div>
                             <div class="news-meta">
-                                <span class="news-source">${source}</span>
-                                ${timeAgo ? `<span class="news-sep">·</span><span>${timeAgo}</span>` : ''}
+                                <span class="news-source">${escapeHtml(article.source?.name || '출처')}</span>
+                                ${article.publishedAt ? `<span class="news-sep">·</span><span>${formatTimeAgo(article.publishedAt)}</span>` : ''}
                             </div>
                         </div>
                     </div>
                 `;
             }).join('');
-
             container.innerHTML = html;
-
-            // 북마크 버튼 이벤트 바인딩
             container.querySelectorAll('.news-bookmark-btn').forEach(btn => {
-                btn.addEventListener('click', (e) => {
+                btn.addEventListener('click', e => {
                     e.stopPropagation();
-                    const url = btn.dataset.url;
-                    const article = articles.find(a => a.url === url);
+                    const article = articles.find(a => a.url === btn.dataset.url);
                     if (article) {
                         toggleBookmark(article);
-                        // UI 업데이트
-                        const isMarked = isBookmarked(url);
-                        btn.classList.toggle('bookmarked', isMarked);
-                        btn.textContent = '🔖';
-                        btn.setAttribute('aria-label', isMarked ? '북마크 제거' : '북마크 추가');
-                        btn.setAttribute('title', isMarked ? '북마크 제거' : '북마크 추가');
+                        btn.classList.toggle('bookmarked');
                     }
                 });
             });
-
-            // 클릭·키보드 이벤트 바인딩
             container.querySelectorAll('.news-card').forEach(card => {
                 const open = () => window.open(card.dataset.url, '_blank', 'noopener,noreferrer');
                 card.addEventListener('click', open);
-                card.addEventListener('keydown', (e) => {
+                card.addEventListener('keydown', e => {
                     if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); }
                 });
-            });
-        }
-
-        function renderNewsError() {
-            document.getElementById('newsContainer').innerHTML = `
-                <div class="news-state">
-                    <div class="state-icon">😵</div>
-                    <div class="state-message">
-                        뉴스를 불러오지 못했습니다.<br>
-                        인터넷 연결을 확인하거나 API 키를 다시 확인해주세요.
-                    </div>
-                    <div style="display: flex; gap: 10px; justify-content: center; margin-top: 16px;">
-                        <button class="news-retry-btn" id="newsRetryBtn">다시 시도</button>
-                        <button class="api-change-btn" id="changeKeyBtn" style="padding: 9px 22px;">API 키 변경</button>
-                    </div>
-                </div>
-            `;
-            document.getElementById('newsRetryBtn').addEventListener('click', showNewsTab);
-            document.getElementById('changeKeyBtn').addEventListener('click', () => {
-                clearApiKey();
-                renderApiKeyInput();
             });
         }
 
         function renderBookmarksList() {
-            const bookmarks = loadBookmarks();
+            const bookmarks = loadBookmarks().sort((a, b) => b.savedAt - a.savedAt);
             const container = document.getElementById('bookmarksContainer');
             const clearBtn = document.getElementById('clearAllBtn');
-
-            // 최신순 정렬
-            bookmarks.sort((a, b) => b.savedAt - a.savedAt);
-
             if (bookmarks.length === 0) {
                 clearBtn.style.display = 'none';
-                container.innerHTML = `
-                    <div class="news-state">
-                        <div class="state-icon">🔖</div>
-                        <div class="state-message">저장된 기사가 없어요.<br>뉴스 탭에서 🔖를 눌러 저장해보세요.</div>
-                    </div>
-                `;
+                container.innerHTML = '<div class="news-state"><div class="state-icon">🔖</div><div class="state-message">저장된 기사가 없어요.<br>뉴스 탭에서 북마크해보세요.</div></div>';
                 return;
             }
-
             clearBtn.style.display = 'inline-block';
-
-            const html = bookmarks.map(bookmark => {
-                const title   = escapeHtml(bookmark.title);
-                const source  = escapeHtml(bookmark.source);
-                const timeAgo = bookmark.publishedAt ? formatTimeAgo(bookmark.publishedAt) : '';
-                const url     = escapeHtml(bookmark.url);
-
-                const thumbHtml = bookmark.urlToImage
-                    ? `<img
-                            class="news-thumbnail"
-                            src="${escapeHtml(bookmark.urlToImage)}"
-                            alt=""
-                            loading="lazy"
-                            onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'news-thumbnail-placeholder',textContent:'📰'}))"
-                        >`
-                    : `<div class="news-thumbnail-placeholder" aria-hidden="true">📰</div>`;
-
-                return `
-                    <div
-                        class="news-card"
-                        role="article"
-                        tabindex="0"
-                        data-url="${url}"
-                        aria-label="${title}"
-                    >
-                        <button
-                            class="news-bookmark-btn bookmarked"
-                            data-url="${url}"
-                            aria-label="북마크 제거"
-                            title="북마크 제거"
-                        >🔖</button>
-                        ${thumbHtml}
-                        <div class="news-content">
-                            <div class="news-title">${title}</div>
-                            <div class="news-meta">
-                                <span class="news-source">${source}</span>
-                                ${timeAgo ? `<span class="news-sep">·</span><span>${timeAgo}</span>` : ''}
-                            </div>
+            const html = bookmarks.map(b => `
+                <div class="news-card" role="article" tabindex="0" data-url="${escapeHtml(b.url)}" aria-label="${escapeHtml(b.title)}">
+                    <button class="news-bookmark-btn bookmarked" data-url="${escapeHtml(b.url)}" aria-label="북마크 제거">🔖</button>
+                    <div class="news-thumbnail">${b.urlToImage || '📰'}</div>
+                    <div class="news-content">
+                        <div class="news-title">${escapeHtml(b.title)}</div>
+                        <div class="news-meta">
+                            <span class="news-source">${escapeHtml(b.source)}</span>
+                            ${b.publishedAt ? `<span class="news-sep">·</span><span>${formatTimeAgo(b.publishedAt)}</span>` : ''}
                         </div>
                     </div>
-                `;
-            }).join('');
-
+                </div>
+            `).join('');
             container.innerHTML = html;
-
-            // 북마크 제거 버튼 이벤트
             container.querySelectorAll('.news-bookmark-btn').forEach(btn => {
-                btn.addEventListener('click', (e) => {
+                btn.addEventListener('click', e => {
                     e.stopPropagation();
-                    const url = btn.dataset.url;
-                    toggleBookmark({ url });
+                    toggleBookmark({ url: btn.dataset.url });
                     renderBookmarksList();
                 });
             });
-
-            // 카드 클릭 이벤트
             container.querySelectorAll('.news-card').forEach(card => {
                 const open = () => window.open(card.dataset.url, '_blank', 'noopener,noreferrer');
                 card.addEventListener('click', open);
-                card.addEventListener('keydown', (e) => {
+                card.addEventListener('keydown', e => {
                     if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); }
                 });
             });
         }
 
-        function renderApiKeyInput() {
-            const container = document.getElementById('newsContainer');
-            container.innerHTML = `
-                <div class="news-state">
-                    <div class="state-icon">🔑</div>
-                    <div class="state-message">뉴스를 보려면 GNews API 키가 필요합니다.</div>
-                    <div class="api-setup-form">
-                        <div class="api-setup-step">
-                            <p><strong>1. GNews API 키 발급받기</strong></p>
-                            <p style="font-size: 13px; color: #6B7280; margin: 8px 0;">
-                                <a href="https://gnews.io/" target="_blank" style="color: #3B82F6; text-decoration: underline;">gnews.io</a>
-                                에서 무료 가입 후 API 키를 발급받으세요.<br>
-                                <span style="font-size: 12px;">(최초 가입 시 무료 50,000 API calls/month 제공)</span>
-                            </p>
-                        </div>
-                        <div class="api-setup-step">
-                            <p><strong>2. 아래에 키 입력하기</strong></p>
-                            <input
-                                type="password"
-                                id="apiKeyInput"
-                                placeholder="API 키를 입력하세요..."
-                                style="width: 100%; padding: 10px 12px; border: 1px solid #E5E7EB; border-radius: 8px; font-size: 14px; font-family: 'Courier New', monospace; margin: 8px 0;"
-                            >
-                            <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: #6B7280; margin: 8px 0;">
-                                <input type="checkbox" id="showApiKey">
-                                키 표시
-                            </label>
-                        </div>
-                        <div style="display: flex; gap: 10px; margin-top: 12px;">
-                            <button id="saveApiKeyBtn" class="news-retry-btn" style="flex: 1;">저장 및 뉴스 로드</button>
-                            ${getApiKey() ? `<button id="retryWithSavedKeyBtn" class="api-change-btn" style="padding: 9px 22px;">저장된 키로 시도</button>` : ''}
-                        </div>
-                        ${getApiKey() ? `<button id="changeApiKeyBtn" class="api-change-btn" style="width: 100%; margin-top: 8px;">다른 키 사용</button>` : ''}
-                    </div>
-                </div>
-            `;
-
-            const input = document.getElementById('apiKeyInput');
-            const showCheckbox = document.getElementById('showApiKey');
-            const saveBtn = document.getElementById('saveApiKeyBtn');
-
-            // 이미 저장된 키가 있으면 표시
-            const existingKey = getApiKey();
-            if (existingKey) {
-                input.value = existingKey;
-            }
-
-            // 키 표시/숨김 토글
-            showCheckbox.addEventListener('change', (e) => {
-                input.type = e.target.checked ? 'text' : 'password';
-            });
-
-            // 저장 버튼
-            saveBtn.addEventListener('click', () => {
-                const key = input.value.trim();
-                if (!key) {
-                    alert('API 키를 입력해주세요.');
-                    return;
-                }
-                setApiKey(key);
-                showNewsTab();
-            });
-
-            // Enter 키 입력 시 저장
-            input.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') {
-                    saveBtn.click();
-                }
-            });
-
-            // 저장된 키로 시도 버튼
-            const retryBtn = document.getElementById('retryWithSavedKeyBtn');
-            if (retryBtn) {
-                retryBtn.addEventListener('click', () => {
-                    showNewsTab();
-                });
-            }
-
-            // 다른 키 사용 버튼
-            const changeBtn = document.getElementById('changeApiKeyBtn');
-            if (changeBtn) {
-                changeBtn.addEventListener('click', () => {
-                    input.value = '';
-                    input.focus();
-                });
-            }
-        }
-
         async function showNewsTab() {
-            // API 키 확인
-            if (!getApiKey()) {
-                renderApiKeyInput();
-                return;
-            }
-
             renderNewsSkeleton();
-
             try {
                 const articles = await fetchNews();
                 renderNewsList(articles);
             } catch (err) {
-                console.error('[News] fetch failed:', err);
-                if (err.message === 'API_KEY_NOT_SET') {
-                    renderApiKeyInput();
-                } else {
-                    renderNewsError();
-                }
+                console.error('[News] Error:', err);
+                document.getElementById('newsContainer').innerHTML = '<div class="news-state"><div class="state-icon">😵</div><div class="state-message">뉴스를 불러오지 못했습니다.</div></div>';
             }
         }
 
-        // ===== News Widget (메인 화면) =====
-        function renderNewsWidgetSkeleton() {
-            const container = document.getElementById('newsWidgetContainer');
-            container.innerHTML = `
-                <div class="news-widget">
-                    <div class="widget-title">📰 오늘의 주요 뉴스</div>
-                    ${Array.from({ length: 3 }, () => '<div class="widget-skeleton"></div>').join('')}
-                </div>
-            `;
-            container.style.display = '';
+        function switchNewsSubtab(subtab) {
+            currentNewsSubtab = subtab;
+            document.querySelectorAll('.news-subtab').forEach(btn => btn.classList.toggle('active', btn.dataset.subtab === subtab));
+            document.getElementById('news-feed-container').style.display = subtab === 'news-feed' ? '' : 'none';
+            document.getElementById('bookmarks-container').style.display = subtab === 'bookmarks' ? '' : 'none';
+            if (subtab === 'news-feed') showNewsTab();
+            else if (subtab === 'bookmarks') renderBookmarksList();
         }
 
-        function renderNewsWidget(articles) {
+        async function loadNewsWidget() {
             const container = document.getElementById('newsWidgetContainer');
+            try {
+                renderNewsWidget();
+            } catch (err) {
+                container.style.display = 'none';
+            }
+        }
 
-            if (!articles || articles.length === 0) {
+        async function renderNewsWidget() {
+            const container = document.getElementById('newsWidgetContainer');
+            const articles = await fetchNews();
+            if (!articles?.length) {
                 container.style.display = 'none';
                 return;
             }
-
             const topArticles = articles.slice(0, 3);
             const itemsHtml = topArticles.map(article => {
-                const title = escapeHtml(article.title || '제목 없음');
-                const source = escapeHtml(article.source?.name || '출처 불명');
-                const url = escapeHtml(article.url || '#');
+                const url = escapeHtml(article.url);
+                const title = escapeHtml(article.title);
+                const source = escapeHtml(article.source?.name || '출처');
                 return `
                     <div class="widget-news-item">
-                        <div class="widget-news-title" onclick="window.open('${url}', '_blank', 'noopener,noreferrer')" title="${title}">
-                            ${title}
-                        </div>
+                        <div class="widget-news-title" onclick="window.open('${url}', '_blank', 'noopener,noreferrer')" title="${title}">${title}</div>
                         <div class="widget-news-source">${source}</div>
                     </div>
                 `;
             }).join('');
-
             container.innerHTML = `
                 <div class="news-widget">
                     <div class="widget-title">📰 오늘의 주요 뉴스</div>
@@ -1681,99 +662,31 @@
             container.style.display = '';
         }
 
-        async function loadNewsWidget() {
-            const container = document.getElementById('newsWidgetContainer');
-
-            // API 키 미설정이면 위젯 표시 안 함
-            if (!getApiKey()) {
-                container.style.display = 'none';
-                return;
-            }
-
-            renderNewsWidgetSkeleton();
-
-            try {
-                const articles = await fetchNews('general');
-                renderNewsWidget(articles);
-            } catch (err) {
-                console.error('[Widget] News load failed:', err);
-                container.style.display = 'none';
-            }
-        }
-
-        function switchNewsSubtab(subtab) {
-            currentNewsSubtab = subtab;
-
-            // 서브탭 버튼 활성화 상태 전환
-            document.querySelectorAll('.news-subtab').forEach(btn => {
-                const isActive = btn.dataset.subtab === subtab;
-                btn.classList.toggle('active', isActive);
-            });
-
-            // 컨테이너 전환
-            document.getElementById('news-feed-container').style.display = subtab === 'news-feed' ? '' : 'none';
-            document.getElementById('bookmarks-container').style.display = subtab === 'bookmarks' ? '' : 'none';
-
-            // 뉴스 피드 진입 시 뉴스 로드
-            if (subtab === 'news-feed') {
-                showNewsTab();
-            }
-            // 북마크 탭 진입 시 렌더링
-            else if (subtab === 'bookmarks') {
-                renderBookmarksList();
-            }
-        }
-
         // ===== Tab Navigation =====
         function switchTab(tabName) {
-            // 탭 패널 전환
             document.getElementById('tab-todo').style.display = tabName === 'todo' ? '' : 'none';
             document.getElementById('tab-news').style.display = tabName === 'news' ? '' : 'none';
-
-            // 탭 버튼 활성화 상태 전환
             document.querySelectorAll('.nav-tab').forEach(btn => {
                 const isActive = btn.dataset.tab === tabName;
                 btn.classList.toggle('active', isActive);
                 btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
             });
-
-            // 할 일 탭 진입 시 뉴스 위젯 로드
             if (tabName === 'todo') {
-                loadNewsWidget();
-            }
-            // 뉴스 탭 진입 시 뉴스 피드 서브탭으로 설정 후 로딩
-            else if (tabName === 'news') {
+                renderTodos();
+            } else if (tabName === 'news') {
                 currentNewsSubtab = 'news-feed';
                 switchNewsSubtab('news-feed');
             }
-        }
-
-        // ===== Event Handlers =====
-        function handleAdd() {
-            const input = document.getElementById('todoInput');
-            const category = document.getElementById('categorySelect').value;
-            addTodo(input.value, category);
-            input.value = '';
-            input.focus();
         }
 
         // ===== Init =====
         (function init() {
             renderFilterTabs();
             renderTodos();
-            loadNewsWidget();
 
-            // 탭 네비게이션 이벤트 바인딩
-            document.querySelectorAll('.nav-tab').forEach(btn => {
-                btn.addEventListener('click', () => switchTab(btn.dataset.tab));
-            });
+            document.querySelectorAll('.nav-tab').forEach(btn => btn.addEventListener('click', () => switchTab(btn.dataset.tab)));
+            document.querySelectorAll('.news-subtab').forEach(btn => btn.addEventListener('click', () => switchNewsSubtab(btn.dataset.subtab)));
 
-            // 뉴스 서브탭 이벤트 바인딩
-            document.querySelectorAll('.news-subtab').forEach(btn => {
-                btn.addEventListener('click', () => switchNewsSubtab(btn.dataset.subtab));
-            });
-
-            // 전체 삭제 버튼
             document.getElementById('clearAllBtn').addEventListener('click', () => {
                 if (confirm('저장된 기사를 모두 삭제할까요?')) {
                     saveBookmarks([]);
@@ -1785,17 +698,22 @@
             const todoInput = document.getElementById('todoInput');
             const charCount = document.getElementById('charCount');
 
-            addBtn.addEventListener('click', handleAdd);
+            addBtn.addEventListener('click', () => {
+                const text = todoInput.value;
+                const category = document.getElementById('categorySelect').value;
+                addTodo(text, category);
+                todoInput.value = '';
+                todoInput.focus();
+            });
 
-            todoInput.addEventListener('keypress', (e) => {
+            todoInput.addEventListener('keypress', e => {
                 if (e.key === 'Enter') {
-                    handleAdd();
+                    addBtn.click();
                 }
             });
 
-            todoInput.addEventListener('input', (e) => {
-                const count = e.target.value.length;
-                charCount.textContent = `${count}/100`;
+            todoInput.addEventListener('input', e => {
+                charCount.textContent = `${e.target.value.length}/100`;
             });
         })();
     </script>
