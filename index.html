@@ -1,721 +1,1115 @@
-<!--
- * 할 일 관리 앱 (Todo Manager + News Widget)
- * v1.0 - 최종 완성
- * Created: 2026-05-27
- *
- * 순수 HTML/CSS/JavaScript 앱
- * 로컬스토리지: 할 일, 북마크 데이터 저장
- * sessionStorage: 뉴스 캐시 (15분)
- -->
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>할 일 관리</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css" rel="stylesheet">
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        html { scroll-behavior: smooth; }
-        body {
-            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            background-color: #F9FAFB;
-            color: #111827;
-            line-height: 1.5;
-            font-size: 16px;
-            padding: 16px;
-        }
-        #app { max-width: 640px; margin: 0 auto; }
-        h1 { font-size: 20px; font-weight: 600; margin-bottom: 24px; }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>투자 대시보드</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1a1a1a;background:#f8f7f4;min-height:100vh}
 
-        /* Card Style */
-        .card { background: #FFF; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); padding: 16px; margin-bottom: 24px; }
 
-        /* Progress Section */
-        #statsContainer { margin-bottom: 24px; }
-        .progress-section { background: #FFF; padding: 16px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 24px; }
-        .progress-summary { margin-bottom: 12px; }
-        .progress-summary > div:first-child { font-size: 14px; color: #6B7280; margin-bottom: 12px; font-weight: 500; }
-        .progress-bar { width: 100%; height: 8px; background: #E5E7EB; border-radius: 4px; overflow: hidden; margin-bottom: 8px; }
-        .progress-fill { height: 100%; background: #3B82F6; transition: width 0.3s ease; }
-        .progress-percent { font-size: 13px; color: #6B7280; text-align: right; font-weight: 500; }
-        .category-stats { font-size: 13px; color: #6B7280; margin-top: 12px; padding-top: 12px; border-top: 1px solid #E5E7EB; }
+/* ── NAV ── */
+.nav{background:#fff;border-bottom:1px solid #e8e8e8;padding:0 1.5rem;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:99}
+.nav-logo{font-size:15px;font-weight:700;padding:12px 0;letter-spacing:-.3px}
+.nav-tabs{display:flex;gap:0;overflow-x:auto}
+.nav-tabs::-webkit-scrollbar{display:none}
+.nav-tab{padding:12px 14px;font-size:13px;cursor:pointer;border:none;background:transparent;color:#888;border-bottom:2px solid transparent;white-space:nowrap;transition:all .15s;font-family:inherit}
+.nav-tab.on{color:#1a1a1a;font-weight:600;border-bottom-color:#1a1a1a}
+.nav-tab:hover:not(.on){color:#1a1a1a;background:#f8f7f4}
+.nav-right{display:flex;gap:6px;padding:8px 0;flex-shrink:0}
 
-        /* Filter Tabs */
-        .filter-tabs { display: flex; gap: 8px; margin-bottom: 24px; flex-wrap: wrap; }
-        .filter-tab { padding: 8px 14px; background: transparent; border: 1px solid #E5E7EB; border-radius: 8px; cursor: pointer; font-size: 14px; color: #6B7280; transition: all 0.15s ease; font-weight: 500; }
-        .filter-tab:hover { border-color: #3B82F6; color: #3B82F6; }
-        .filter-tab.active { background: #3B82F6; color: #FFF; border-color: #3B82F6; }
+/* ── LAYOUT ── */
+.page{display:none;padding:1.25rem 1.5rem;max-width:960px;margin:0 auto}
+.page.on{display:block}
 
-        /* Input Section */
-        .input-section { display: flex; gap: 12px; margin-bottom: 24px; background: #FFF; padding: 16px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-        .input-wrapper { flex: 1; position: relative; }
-        input[type="text"]#todoInput { width: 100%; padding: 10px 40px 10px 12px; border: 1px solid #E5E7EB; border-radius: 8px; font-size: 14px; color: #111827; font-family: inherit; transition: border-color 0.15s ease, box-shadow 0.15s ease; }
-        input[type="text"]#todoInput:focus { outline: none; border-color: #3B82F6; box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
-        .char-count { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font-size: 12px; color: #9CA3AF; pointer-events: none; }
-        select#categorySelect { padding: 10px 12px; border: 1px solid #E5E7EB; border-radius: 8px; background: #FFF; color: #111827; font-size: 14px; font-family: inherit; cursor: pointer; }
-        select#categorySelect:focus { outline: none; border-color: #3B82F6; box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
-        button#addBtn { padding: 10px 20px; background: #3B82F6; color: #FFF; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 500; font-family: inherit; transition: background 0.15s ease; white-space: nowrap; }
-        button#addBtn:hover { background: #2563EB; }
+/* ── COMMON COMPONENTS ── */
+.up{color:#0a8a57}.down{color:#d63031}.neu{color:#888}
+.btn{font-size:12px;padding:6px 11px;border:1px solid #ddd;border-radius:8px;background:#fff;cursor:pointer;color:#1a1a1a;display:inline-flex;align-items:center;gap:4px;font-family:inherit;transition:all .12s;white-space:nowrap}
+.btn:hover{background:#f0efec}.btn:disabled{opacity:.4;cursor:not-allowed}
+.section-lbl{font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px}
+.card{background:#fff;border:1px solid #e8e8e8;border-radius:12px;padding:14px 16px;margin-bottom:8px}
+.pill{font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;display:inline-block}
+.filter-row{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:.875rem}
+.fbtn{font-size:11px;padding:3px 10px;border-radius:20px;border:1px solid #ddd;background:transparent;cursor:pointer;color:#888;font-family:inherit;transition:all .12s}
+.fbtn.on{background:#1a1a1a;color:#fff;border-color:#1a1a1a}
+.inner-tab-bar{display:flex;border-bottom:1px solid #e5e5e5;margin-bottom:1rem;overflow-x:auto;gap:0}
+.inner-tab-bar::-webkit-scrollbar{display:none}
+.itab{padding:8px 13px;font-size:13px;cursor:pointer;border:none;background:transparent;color:#888;border-bottom:2px solid transparent;white-space:nowrap;font-family:inherit;transition:all .15s}
+.itab.on{color:#1a1a1a;font-weight:600;border-bottom-color:#1a1a1a}
+.itab:hover:not(.on){background:#f8f7f4;color:#1a1a1a}
+.ipanel{display:none}.ipanel.on{display:block}
+.spin{display:inline-block;animation:sp 1s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.err-box{background:#fef2f2;color:#991b1b;border-radius:8px;padding:9px 12px;font-size:12px;margin-top:8px;border:1px solid #fecaca;line-height:1.5}
+.info-box{background:#eff6ff;color:#1e40af;border-radius:8px;padding:9px 12px;font-size:12px;margin-bottom:10px;border:1px solid #bfdbfe;line-height:1.6}
+.empty{text-align:center;padding:2rem 1rem;color:#888;font-size:13px}
 
-        /* Todo Items */
-        #todosContainer { min-height: 50px; }
-        .todo-item { display: flex; align-items: center; gap: 12px; padding: 12px; background: #FFF; margin-bottom: 8px; border: 1px solid #E5E7EB; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
-        .todo-item:hover { box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
-        .todo-item input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; accent-color: #3B82F6; }
-        .todo-text { flex: 1; color: #111827; font-size: 14px; word-break: break-word; }
-        .todo-text.completed { text-decoration: line-through; color: #9CA3AF; }
-        .category-badge { padding: 4px 8px; border-radius: 12px; color: #FFF; font-size: 12px; font-weight: 600; flex-shrink: 0; }
-        .delete-btn { padding: 6px 10px; background: transparent; color: #EF4444; border: 1px solid #FEE2E2; border-radius: 6px; font-size: 12px; font-weight: 500; font-family: inherit; cursor: pointer; transition: all 0.15s ease; }
-        .delete-btn:hover { background: #FEE2E2; border-color: #FCA5A5; }
-        .edit-input { flex: 1; padding: 8px 10px; border: 2px solid #3B82F6; border-radius: 6px; font-size: 14px; font-family: inherit; color: #111827; }
+/* ── METRICS ── */
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin-bottom:1.25rem}
+.metric{background:#fff;border:1px solid #e8e8e8;border-radius:10px;padding:10px 12px}
+.metric-label{font-size:11px;color:#888;margin-bottom:3px}
+.metric-value{font-size:18px;font-weight:700;font-family:monospace}
 
-        /* Empty State */
-        .empty-message { text-align: center; color: #6B7280; padding: 48px 24px; font-size: 14px; line-height: 1.6; background: #FFF; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+/* ── TABLE ── */
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th{font-size:11px;font-weight:600;color:#888;padding:6px 8px;border-bottom:1px solid #e8e8e8;text-align:left;white-space:nowrap;background:#fafafa}
+td{padding:9px 8px;border-bottom:1px solid #f5f5f5;vertical-align:middle;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+tr:hover td{background:#fafafa}
 
-        /* Error */
-        #errorContainer { background: #FEE2E2; border: 1px solid #FECACA; color: #991B1B; padding: 12px 16px; border-radius: 8px; margin-bottom: 24px; font-size: 14px; display: none; font-weight: 500; }
-        #errorContainer.show { display: block; }
+/* ── INDEX CARDS ── */
+.idx-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(135px,1fr));gap:8px;margin-bottom:1rem}
+.idx-card{background:#fff;border:1px solid #e8e8e8;border-radius:10px;padding:10px 12px}
+.idx-sec{font-size:10px;color:#bbb;text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px}
+.idx-name{font-size:13px;font-weight:600;margin-bottom:2px}
+.idx-val{font-size:16px;font-weight:700;font-family:monospace}
+.idx-chg{font-size:11px;margin-top:1px}
 
-        /* Nav Tabs */
-        .nav-tabs { display: flex; gap: 4px; margin-bottom: 20px; border-bottom: 2px solid #E5E7EB; }
-        .nav-tab { padding: 10px 20px; background: transparent; border: none; border-bottom: 2px solid transparent; margin-bottom: -2px; cursor: pointer; font-size: 15px; font-weight: 500; color: #6B7280; font-family: inherit; transition: color 0.15s ease, border-color 0.15s ease; border-radius: 8px 8px 0 0; }
-        .nav-tab:hover { color: #3B82F6; background: #EFF6FF; }
-        .nav-tab.active { background: #3B82F6; color: #FFF; border-bottom-color: #3B82F6; }
 
-        /* News Subtabs */
-        .news-subtabs { display: flex; gap: 8px; margin-bottom: 16px; border-bottom: 2px solid #E5E7EB; }
-        .news-subtab { padding: 10px 16px; background: transparent; border: none; border-bottom: 2px solid transparent; margin-bottom: -2px; cursor: pointer; font-size: 14px; font-weight: 500; color: #6B7280; font-family: inherit; transition: color 0.15s ease, border-color 0.15s ease; border-radius: 8px 8px 0 0; }
-        .news-subtab:hover { color: #3B82F6; }
-        .news-subtab.active { color: #3B82F6; border-bottom-color: #3B82F6; background: #EFF6FF; }
+/* ── MEMO ── */
+.memo-card{background:#fff;border:1px solid #e8e8e8;border-radius:10px;padding:10px 12px;margin-bottom:6px}
+.memo-meta{display:flex;justify-content:space-between;margin-bottom:4px}
+.memo-time{font-size:11px;color:#bbb}
+.memo-text{font-size:13px;line-height:1.65}
+.tag-btns{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:6px}
+.tbtn{font-size:11px;padding:3px 10px;border-radius:20px;border:1px solid #ddd;background:transparent;cursor:pointer;color:#888;font-family:inherit}
+.tbtn.sel{font-weight:700}
+.memo-compose{display:flex;gap:7px;margin-top:6px}
+.memo-compose textarea{flex:1;font-size:13px;padding:8px 10px;border:1px solid #ddd;border-radius:8px;background:#fff;color:#1a1a1a;resize:none;height:54px;font-family:inherit;line-height:1.5}
+.memo-compose textarea:focus{outline:none;border-color:#999}
 
-        #newsContainer { min-height: 200px; }
-        .bookmarks-header { display: flex; justify-content: flex-end; margin-bottom: 12px; }
-        .clear-all-btn { padding: 8px 16px; background: #FEE2E2; color: #EF4444; border: 1px solid #FECACA; border-radius: 8px; font-size: 13px; font-weight: 500; font-family: inherit; cursor: pointer; }
-        .clear-all-btn:hover { background: #FCA5A5; border-color: #F87171; }
+/* ── NEWS ── */
+.news-card{padding:13px 0;border-bottom:1px solid #f0efec}
+.news-card:last-child{border-bottom:none}
+.nc-meta{display:flex;gap:6px;align-items:center;margin-bottom:5px;flex-wrap:wrap}
+.nc-src{font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:#dbeafe;color:#1e40af}
+.nc-time{font-size:11px;color:#bbb}
+.nc-title{font-size:13px;font-weight:600;line-height:1.45;margin-bottom:3px}
+.nc-title a{color:inherit;text-decoration:none}
+.nc-title a:hover{color:#1e40af;text-decoration:underline}
+.nc-summary{font-size:12px;color:#666;line-height:1.6}
 
-        /* News Card */
-        .news-card { display: flex; gap: 14px; background: #FFF; border: 1px solid #E5E7EB; border-radius: 10px; padding: 14px; margin-bottom: 10px; cursor: pointer; transition: box-shadow 0.15s ease, transform 0.1s ease; position: relative; }
-        .news-card:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.09); transform: translateY(-1px); }
-        .news-thumbnail { width: 90px; height: 74px; border-radius: 8px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 32px; background: #F3F4F6; }
-        .news-content { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; justify-content: center; }
-        .news-title { font-size: 14px; font-weight: 600; color: #111827; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-        .news-meta { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #6B7280; }
-        .news-source { font-weight: 600; color: #3B82F6; }
-        .news-sep { color: #D1D5DB; }
-        .news-bookmark-btn { position: absolute; top: 12px; right: 12px; background: none; border: none; font-size: 20px; cursor: pointer; padding: 4px; transition: transform 0.1s ease; }
-        .news-bookmark-btn:hover { transform: scale(1.15); }
+/* ── ANALYST ── */
+.consensus-bar{display:flex;height:5px;border-radius:3px;overflow:hidden;margin-bottom:7px;gap:1px}
+.cb-buy{background:#0a8a57}.cb-hold{background:#d97706}.cb-sell{background:#d63031}
 
-        /* Skeleton */
-        .news-skeleton { display: flex; gap: 14px; background: #FFF; border: 1px solid #E5E7EB; border-radius: 10px; padding: 14px; margin-bottom: 10px; }
-        .skeleton-thumb { width: 90px; height: 74px; border-radius: 8px; flex-shrink: 0; background: linear-gradient(90deg, #E5E7EB 25%, #F3F4F6 50%, #E5E7EB 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; }
-        .skeleton-content { flex: 1; display: flex; flex-direction: column; gap: 10px; }
-        .skeleton-line { height: 12px; border-radius: 4px; background: linear-gradient(90deg, #E5E7EB 25%, #F3F4F6 50%, #E5E7EB 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; }
-        .skeleton-line.w-full { width: 100%; }
-        .skeleton-line.w-3-4 { width: 75%; }
-        .skeleton-line.w-1-3 { width: 36%; }
-        @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+/* ── QUOTE ── */
+.q-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(125px,1fr));gap:8px;margin-bottom:.75rem}
+.q-card{background:#fff;border:1px solid #e8e8e8;border-radius:10px;padding:10px 12px}
+.q-sym{font-size:11px;color:#888;font-weight:600;margin-bottom:2px}
+.q-price{font-size:17px;font-weight:700;font-family:monospace}
+.q-chg{font-size:11px;margin-top:1px}
 
-        /* State Messages */
-        .news-state { text-align: center; padding: 52px 24px; background: #FFF; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-        .state-icon { font-size: 38px; margin-bottom: 12px; }
-        .state-message { font-size: 14px; color: #6B7280; line-height: 1.7; margin-bottom: 20px; }
-        .news-retry-btn { padding: 9px 22px; background: #3B82F6; color: #FFF; border: none; border-radius: 8px; font-size: 14px; font-weight: 500; font-family: inherit; cursor: pointer; transition: background 0.15s ease; }
-        .news-retry-btn:hover { background: #2563EB; }
+/* ── SITE CARDS ── */
+.site-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(195px,1fr));gap:8px}
+.site-card{background:#fff;border:1px solid #e8e8e8;border-radius:12px;padding:12px 14px;text-decoration:none;display:block;transition:border-color .15s}
+.site-card:hover{border-color:#999}
+.sc-top{display:flex;justify-content:space-between;align-items:flex-start;gap:6px;margin-bottom:5px}
+.sc-name{font-size:13px;font-weight:600;color:#1a1a1a}
+.sc-desc{font-size:12px;color:#666;line-height:1.5}
 
-        /* News Widget */
-        .news-widget { background: #FFF; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); padding: 16px; margin-bottom: 24px; }
-        .widget-title { font-size: 14px; font-weight: 600; color: #111827; margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
-        .widget-news-item { padding: 10px 0; border-bottom: 1px solid #E5E7EB; display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
-        .widget-news-item:last-child { border-bottom: none; }
-        .widget-news-title { flex: 1; font-size: 13px; color: #111827; line-height: 1.4; cursor: pointer; transition: color 0.15s ease; word-break: break-word; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-        .widget-news-title:hover { color: #3B82F6; }
-        .widget-news-source { font-size: 11px; color: #9CA3AF; white-space: nowrap; flex-shrink: 0; }
-        .widget-footer { margin-top: 12px; padding-top: 12px; border-top: 1px solid #E5E7EB; text-align: right; }
-        .widget-more-link { font-size: 13px; color: #3B82F6; cursor: pointer; font-weight: 500; transition: color 0.15s ease; }
-        .widget-more-link:hover { color: #2563EB; }
-        .widget-skeleton { padding: 8px 0; height: 40px; background: linear-gradient(90deg, #E5E7EB 25%, #F3F4F6 50%, #E5E7EB 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; border-radius: 4px; margin-bottom: 8px; }
+/* ── API KEY ── */
+.apikey-box{background:#fff;border:1px solid #e8e8e8;border-radius:12px;padding:1.25rem;margin-bottom:1.25rem}
+.key-row{display:flex;gap:7px}
+.key-row input{flex:1;font-size:13px;padding:7px 10px;border:1px solid #ddd;border-radius:8px;background:#fff;color:#1a1a1a;font-family:monospace}
+.key-status{font-size:11px;margin-top:6px;display:flex;align-items:center;gap:5px}
+.dot-live{width:6px;height:6px;border-radius:50%;background:#0a8a57;animation:pulse 2s infinite;flex-shrink:0}
+.dot-err{width:6px;height:6px;border-radius:50%;background:#d63031;flex-shrink:0}
+.dot-wait{width:6px;height:6px;border-radius:50%;background:#d97706;flex-shrink:0}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
 
-        /* Responsive */
-        @media (max-width: 480px) {
-            body { padding: 12px; }
-            h1 { font-size: 18px; }
-            .input-section { flex-wrap: wrap; gap: 8px; }
-            .input-wrapper { flex: 0 0 calc(100% - 60px); }
-            select#categorySelect { flex: 0 0 calc(50% - 4px); }
-            button#addBtn { flex: 0 0 calc(50% - 4px); }
-        }
-    </style>
+/* ── REG ── */
+.reg-card{background:#fff;border:1px solid #e8e8e8;border-radius:12px;padding:11px 13px;margin-bottom:7px}
+.reg-head{display:flex;justify-content:space-between;gap:8px;margin-bottom:5px}
+.reg-title{font-size:13px;font-weight:600;line-height:1.4}
+.reg-status{font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;white-space:nowrap;flex-shrink:0}
+.reg-body{font-size:12px;color:#666;line-height:1.6;margin-bottom:5px}
+.reg-foot{display:flex;gap:10px;font-size:11px;color:#bbb;flex-wrap:wrap}
+
+/* ── STEP BOX ── */
+.step-box{background:#fff;border:1px solid #e8e8e8;border-radius:12px;padding:1.25rem;margin-bottom:1rem}
+.step-item{display:flex;gap:10px;align-items:flex-start;margin-bottom:10px}
+.step-item:last-child{margin-bottom:0}
+.step-num{width:22px;height:22px;border-radius:50%;background:#1a1a1a;color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+.step-content{font-size:13px;line-height:1.6;color:#333}
+.step-content strong{color:#1a1a1a}
+.step-content code{font-family:monospace;background:#f0efec;padding:1px 5px;border-radius:4px;font-size:12px}
+.highlight-box{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:10px 14px;font-size:13px;color:#166534;margin-top:.75rem;line-height:1.6}
+.warn-box{background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:10px 14px;font-size:13px;color:#92400e;margin-top:.75rem;line-height:1.6}
+</style>
 </head>
 <body>
-    <div id="app">
-        <h1>할 일 관리</h1>
 
-        <!-- 탭 네비게이션 -->
-        <nav class="nav-tabs" aria-label="메인 탭">
-            <button class="nav-tab active" data-tab="todo" aria-selected="true">📋 할 일</button>
-            <button class="nav-tab" data-tab="news" aria-selected="false">📰 뉴스</button>
-        </nav>
+<!-- NAV -->
+<nav class="nav">
+  <div class="nav-logo">📊 투자 허브</div>
+  <div class="nav-tabs">
+    <button class="nav-tab on"  onclick="goPage('portfolio',this)">계좌 관리</button>
+    <button class="nav-tab"     onclick="goPage('indices',this)">지수·환율</button>
+    <button class="nav-tab"     onclick="goPage('news',this)">뉴스</button>
+    <button class="nav-tab"     onclick="goPage('research',this)">리서치·규제</button>
+    <button class="nav-tab"     onclick="goPage('memo',this)">투자 일지</button>
+  </div>
+  <div class="nav-right">
+    <button class="btn" id="refresh-btn" onclick="refreshAll()">↻</button>
+    <span id="live-dot" style="font-size:10px;color:#888;align-self:center" id="nav-upd">—</span>
+  </div>
+</nav>
 
-        <div id="errorContainer" role="alert" aria-live="polite"></div>
-
-        <!-- 할 일 탭 -->
-        <div id="tab-todo">
-            <div id="statsContainer"></div>
-            <div id="newsWidgetContainer" style="display:none;"></div>
-
-            <form class="input-section" onsubmit="return false;">
-                <div class="input-wrapper">
-                    <label for="todoInput" class="sr-only">할 일 입력</label>
-                    <input type="text" id="todoInput" placeholder="할 일을 입력하세요..." maxlength="100" autocomplete="off">
-                    <span class="char-count" id="charCount" aria-live="polite">0/100</span>
-                </div>
-                <label for="categorySelect" class="sr-only">카테고리</label>
-                <select id="categorySelect">
-                    <option value="work">업무</option>
-                    <option value="personal">개인</option>
-                    <option value="study">공부</option>
-                    <option value="class">강의</option>
-                </select>
-                <button type="button" id="addBtn">추가</button>
-            </form>
-
-            <div class="filter-tabs" id="filterTabs" role="tablist"></div>
-            <div id="todosContainer"></div>
+<!-- ══════════════════════════════════════════
+     PAGE 1: 계좌 관리
+═══════════════════════════════════════════ -->
+<div id="page-portfolio" class="page on">
+  <div class="metrics">
+    <div class="metric"><div class="metric-label">총 평가금액</div><div class="metric-value" id="m-total">—</div></div>
+    <div class="metric"><div class="metric-label">총 손익</div><div class="metric-value" id="m-profit">—</div></div>
+    <div class="metric"><div class="metric-label">수익률</div><div class="metric-value" id="m-rate">—</div></div>
+    <div class="metric"><div class="metric-label">보유 종목</div><div class="metric-value" id="m-cnt">—</div></div>
+    <div class="metric">
+      <div class="metric-label" id="cash-krw-label">현금 (원화)</div>
+      <div id="cash-krw-view" style="display:flex;align-items:center;gap:12px;margin-top:3px">
+        <span id="cash-krw-txt" class="metric-value" style="font-size:16px">—</span>
+        <button onclick="editCash('krw')" style="font-size:11px;padding:3px 7px;border:1px solid #ddd;border-radius:6px;background:#fff;cursor:pointer;color:#555">편집</button>
+      </div>
+      <div id="cash-krw-form" style="display:none;margin-top:4px">
+        <input id="cash-krw" type="number" min="0" placeholder="0" style="width:100%;font-size:14px;font-weight:700;font-family:monospace;padding:4px 7px;border:1px solid #d97706;border-radius:6px;background:#fff;color:#1a1a1a"/>
+        <div style="display:flex;gap:4px;margin-top:5px">
+          <button onclick="saveCashEdit('krw')" style="font-size:11px;padding:3px 9px;border:none;border-radius:6px;background:#0a8a57;color:#fff;cursor:pointer">저장</button>
+          <button onclick="cancelCashEdit('krw')" style="font-size:11px;padding:3px 8px;border:1px solid #ddd;border-radius:6px;background:#fff;cursor:pointer;color:#666">취소</button>
         </div>
-
-        <!-- 뉴스 탭 -->
-        <div id="tab-news" style="display:none;">
-            <div class="news-subtabs">
-                <button class="news-subtab active" data-subtab="news-feed">📰 뉴스</button>
-                <button class="news-subtab" data-subtab="bookmarks">🔖 북마크</button>
-            </div>
-            <div id="news-feed-container">
-                <div id="newsContainer"></div>
-            </div>
-            <div id="bookmarks-container" style="display:none;">
-                <div class="bookmarks-header">
-                    <button id="clearAllBtn" class="clear-all-btn" style="display:none;">전체 삭제</button>
-                </div>
-                <div id="bookmarksContainer"></div>
-            </div>
-        </div>
+      </div>
     </div>
+    <div class="metric">
+      <div class="metric-label">현금 (달러)</div>
+      <div id="cash-usd-view" style="display:flex;align-items:center;gap:12px;margin-top:3px">
+        <span id="cash-usd-txt" class="metric-value" style="font-size:16px">—</span>
+        <button onclick="editCash('usd')" style="font-size:11px;padding:3px 7px;border:1px solid #ddd;border-radius:6px;background:#fff;cursor:pointer;color:#555">편집</button>
+      </div>
+      <div id="cash-usd-form" style="display:none;margin-top:4px">
+        <input id="cash-usd" type="number" min="0" placeholder="0" style="width:100%;font-size:14px;font-weight:700;font-family:monospace;padding:4px 7px;border:1px solid #d97706;border-radius:6px;background:#fff;color:#1a1a1a"/>
+        <div style="display:flex;gap:4px;margin-top:5px">
+          <button onclick="saveCashEdit('usd')" style="font-size:11px;padding:3px 9px;border:none;border-radius:6px;background:#0a8a57;color:#fff;cursor:pointer">저장</button>
+          <button onclick="cancelCashEdit('usd')" style="font-size:11px;padding:3px 8px;border:1px solid #ddd;border-radius:6px;background:#fff;cursor:pointer;color:#666">취소</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
-    <script>
-        // ===== Config =====
-        const STORAGE_KEY = 'todos_v1';
-        const BOOKMARKS_STORAGE_KEY = 'news_bookmarks_v1';
-        const API_KEY_STORAGE = 'news_api_key_v1';
-        const NEWS_CACHE_PREFIX = 'news_cache_';
-        const NEWS_CACHE_TTL = 15 * 60 * 1000;
+  <!-- 보유 종목 -->
+  <div id="ip-portfolio-stk" class="ipanel on">
+    <div class="filter-row">
+      <button class="fbtn on" data-g="status" onclick="setStkFilter('all',this)">전체</button>
+      <button class="fbtn"    data-g="status" onclick="setStkFilter('hold',this)">보유</button>
+      <button class="fbtn"    data-g="status" onclick="setStkFilter('buy',this)">매수</button>
+      <button class="fbtn"    data-g="status" onclick="setStkFilter('watch',this)">관심</button>
+      <span style="width:1px;background:#e8e8e8;margin:0 3px;align-self:stretch;display:inline-block"></span>
+      <button class="fbtn on" data-g="market" onclick="setStkMarket('all',this)">전체</button>
+      <button class="fbtn"    data-g="market" onclick="setStkMarket('us',this)">미장</button>
+      <button class="fbtn"    data-g="market" onclick="setStkMarket('kr',this)">국장</button>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>종목명</th><th>티커</th><th>매수가</th><th>현재가</th><th>수량</th><th>평가금액</th><th>수익률</th><th>비중</th><th>상태</th><th></th></tr></thead>
+        <tbody id="stk-body"></tbody>
+      </table>
+    </div>
+    <div style="display:flex;gap:5px;margin-top:.75rem;flex-wrap:wrap">
+      <input id="fn" placeholder="종목명" style="flex:1;min-width:80px;font-size:12px;padding:6px 8px;border:1px solid #ddd;border-radius:8px;background:#fff;color:#1a1a1a;font-family:inherit"/>
+      <input id="ft" placeholder="티커 (예:NVDA, 005930.KS)" style="flex:1.5;min-width:120px;font-size:12px;padding:6px 8px;border:1px solid #ddd;border-radius:8px;background:#fff;color:#1a1a1a;font-family:inherit"/>
+      <input id="fb" type="number" placeholder="매수가" style="width:85px;font-size:12px;padding:6px 8px;border:1px solid #ddd;border-radius:8px;background:#fff;color:#1a1a1a;font-family:inherit"/>
+      <input id="fc" type="number" placeholder="현재가" style="width:85px;font-size:12px;padding:6px 8px;border:1px solid #ddd;border-radius:8px;background:#fff;color:#1a1a1a;font-family:inherit"/>
+      <input id="fq" type="number" placeholder="수량" style="width:65px;font-size:12px;padding:6px 8px;border:1px solid #ddd;border-radius:8px;background:#fff;color:#1a1a1a;font-family:inherit"/>
+      <select id="fm" style="width:65px;font-size:12px;padding:6px 8px;border:1px solid #ddd;border-radius:8px;background:#fff;color:#1a1a1a;font-family:inherit"><option value="us">미장</option><option value="kr">국장</option></select>
+      <select id="fs" style="width:65px;font-size:12px;padding:6px 8px;border:1px solid #ddd;border-radius:8px;background:#fff;color:#1a1a1a;font-family:inherit"><option value="hold">보유</option><option value="buy">매수</option><option value="watch">관심</option></select>
+      <button class="btn" onclick="addStock()">+ 추가</button>
+    </div>
+    <div id="fx-date-row" style="font-size:11px;color:#aaa;margin-top:5px"></div>
+    <div id="price-err" class="err-box" style="display:none"></div>
+  </div>
 
-        const categoryConfig = {
-            work: { name: '업무', color: '#3B82F6' },
-            personal: { name: '개인', color: '#10B981' },
-            study: { name: '공부', color: '#8B5CF6' },
-            class: { name: '수업', color: '#F59E0B' }
-        };
+  <!-- 보유 종목 최신 소식 -->
+  <div id="portfolio-news-section" style="margin-top:1.25rem">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <div class="section-lbl" style="margin-bottom:0">보유 종목 최신 소식 <span style="font-size:10px;font-weight:400;text-transform:none;letter-spacing:0;color:#bbb">(미국 Finnhub · 국내 Naver)</span></div>
+      <div style="display:flex;gap:5px;align-items:center">
+        <span id="pn-ai-dot" style="display:none;width:6px;height:6px;border-radius:50%;background:#0a8a57;flex-shrink:0;animation:pulse 2s infinite"></span>
+        <button class="btn" style="font-size:11px" onclick="togglePnKeyRow()">AI 요약</button>
+        <button class="btn" onclick="loadPortfolioNews()">↻</button>
+      </div>
+    </div>
+    <div id="pn-key-row" style="display:none;gap:6px;margin-bottom:10px;align-items:center;flex-wrap:wrap">
+      <input id="pn-claude-key" type="password" placeholder="Google AI API Key 입력..." autocomplete="off"
+        style="flex:1;min-width:200px;font-size:12px;padding:5px 9px;border:1px solid #ddd;border-radius:7px;font-family:monospace;background:#fff;color:#1a1a1a"/>
+      <button class="btn" onclick="savePnKey()" style="font-weight:600;border-color:#0a8a57;color:#0a8a57">저장</button>
+      <button class="btn" onclick="clearPnKey()" style="color:#d63031;border-color:#fecaca">삭제</button>
+      <span style="font-size:11px;color:#888;width:100%;margin-top:-2px">1회 입력 후 자동 저장 · <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:#1e40af">aistudio.google.com</a> 무료 발급</span>
+    </div>
+    <div id="portfolio-news-feed"><div style="font-size:12px;color:#aaa;padding:6px 0">🔑 뉴스 페이지에서 Finnhub API 키를 연결하면 최신 소식이 표시됩니다</div></div>
+  </div>
 
-        // 샘플 뉴스 데이터 (API 불필요)
-        const SAMPLE_NEWS = [
-            { title: "AI 기술이 일자리 시장을 어떻게 변화시키고 있나?", description: "인공지능 기술의 발전에 따라 직업 시장이 급속도로 변화하고 있습니다.", url: "https://example.com/ai-jobs", urlToImage: "📱", publishedAt: new Date(Date.now() - 2*3600000).toISOString(), source: { name: "테크 뉴스" } },
-            { title: "2026년 상반기 경제 전망", description: "국내 및 글로벌 경제 상황과 향후 6개월 전망을 분석합니다.", url: "https://example.com/economy", urlToImage: "📈", publishedAt: new Date(Date.now() - 4*3600000).toISOString(), source: { name: "금융뉴스" } },
-            { title: "클라우드 기술의 미래 트렌드", description: "엔터프라이즈 클라우드 기술이 어떻게 진화하고 있는지 살펴봅니다.", url: "https://example.com/cloud", urlToImage: "☁️", publishedAt: new Date(Date.now() - 6*3600000).toISOString(), source: { name: "IT 매거진" } },
-            { title: "스타트업 생태계의 변화", description: "최근 스타트업 펀딩 시장의 동향과 변화를 분석합니다.", url: "https://example.com/startup", urlToImage: "🚀", publishedAt: new Date(Date.now() - 8*3600000).toISOString(), source: { name: "벤처뉴스" } },
-            { title: "웹 개발자를 위한 새로운 도구들", description: "2026년에 주목할 웹 개발 도구와 프레임워크를 소개합니다.", url: "https://example.com/webdev", urlToImage: "💻", publishedAt: new Date(Date.now() - 10*3600000).toISOString(), source: { name: "개발자 블로그" } }
-        ];
+</div>
 
-        let currentFilter = 'all';
-        let currentNewsSubtab = 'news-feed';
+<!-- ══════════════════════════════════════════
+     PAGE 2: 지수·환율
+═══════════════════════════════════════════ -->
+<div id="page-indices" class="page">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.875rem">
+    <div style="font-size:12px;color:#888" id="idx-upd">로딩 중...</div>
+    <button class="btn" onclick="loadAllIndices()">↻ 갱신</button>
+  </div>
+  <div class="section-lbl">국내 지수 <span style="font-size:10px;font-weight:400;text-transform:none;letter-spacing:0">(Yahoo Finance · 15분 딜레이)</span></div>
+  <div class="idx-grid" id="idx-kr"><div style="font-size:12px;color:#888">로딩...</div></div>
+  <div class="section-lbl" style="margin-top:.875rem">미국 지수 <span style="font-size:10px;font-weight:400;text-transform:none;letter-spacing:0">(Yahoo Finance · 15분 딜레이)</span></div>
+  <div class="idx-grid" id="idx-us"><div style="font-size:12px;color:#888">로딩...</div></div>
+  <div class="section-lbl" style="margin-top:.875rem">선물 <span style="font-size:10px;font-weight:400;text-transform:none;letter-spacing:0">(Yahoo Finance · 실시간)</span></div>
+  <div class="idx-grid" id="idx-futures"><div style="font-size:12px;color:#888">로딩...</div></div>
+  <div class="section-lbl" style="margin-top:.875rem">가상화폐 <span style="font-size:10px;font-weight:400;text-transform:none;letter-spacing:0">(CoinGecko · 실시간)</span></div>
+  <div class="idx-grid" id="idx-crypto"><div style="font-size:12px;color:#888">로딩...</div></div>
+</div>
 
-        // ===== Utility =====
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
+<!-- ══════════════════════════════════════════
+     PAGE 3: 뉴스 (Finnhub)
+═══════════════════════════════════════════ -->
+<div id="page-news" class="page">
+  <!-- API KEY -->
+  <div class="apikey-box">
+    <div style="font-size:14px;font-weight:700;margin-bottom:8px">🔑 Finnhub API 키 <span style="font-size:11px;color:#888;font-weight:400">(1회 입력 후 자동 저장 · <a href="https://finnhub.io" target="_blank" style="color:#1e40af">finnhub.io</a> 무료 발급)</span></div>
+    <div class="key-row">
+      <input id="api-key-input" type="password" placeholder="Finnhub API Key 입력..." autocomplete="off"/>
+      <button class="btn" id="connect-btn" onclick="connectAPI()" style="font-weight:700">연결</button>
+      <button class="btn" id="clear-btn" onclick="clearKey()" style="display:none">✕</button>
+    </div>
+    <div class="key-status" id="key-status"><span class="dot-wait"></span><span style="color:#888">API 키를 입력해주세요</span></div>
+  </div>
 
-        function formatTimeAgo(isoString) {
-            const diff = Date.now() - new Date(isoString).getTime();
-            const minutes = Math.floor(diff / 60000);
-            if (minutes < 60) return minutes + '분 전';
-            const hours = Math.floor(minutes / 60);
-            if (hours < 24) return hours + '시간 전';
-            return Math.floor(hours / 24) + '일 전';
-        }
+  <div class="inner-tab-bar">
+    <button class="itab on" onclick="swInner('mnews','news',this)">📡 시장 뉴스</button>
+    <button class="itab"    onclick="swInner('cnews','news',this)">🏢 종목별 뉴스</button>
+    <button class="itab"    onclick="swInner('analyst','news',this)">📊 월가 레이팅</button>
+    <button class="itab"    onclick="swInner('quotes','news',this)">⚡ 실시간 시세</button>
+  </div>
 
-        // ===== Storage =====
-        function loadTodos() {
-            try {
-                const stored = localStorage.getItem(STORAGE_KEY);
-                return stored ? JSON.parse(stored) : [];
-            } catch (e) {
-                console.error('Failed to load todos:', e);
-                return [];
+  <!-- 시장 뉴스 -->
+  <div id="ip-news-mnews" class="ipanel on">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem">
+      <div class="filter-row" id="news-cat-filter" style="margin-bottom:0">
+        <button class="fbtn on" onclick="setNewsCat('general',this)">전체</button>
+        <button class="fbtn" onclick="setNewsCat('forex',this)">외환</button>
+        <button class="fbtn" onclick="setNewsCat('crypto',this)">코인</button>
+        <button class="fbtn" onclick="setNewsCat('merger',this)">M&A</button>
+      </div>
+      <button class="btn" onclick="loadMarketNews()">↻ 갱신</button>
+    </div>
+    <div id="news-feed"><div class="empty">API 키 연결 후 실시간 뉴스 표시</div></div>
+  </div>
+
+  <!-- 종목별 뉴스 -->
+  <div id="ip-news-cnews" class="ipanel">
+    <div style="display:flex;gap:7px;margin-bottom:.75rem;flex-wrap:wrap">
+      <input id="company-sym" placeholder="티커 입력 (예: NVDA, AAPL)" style="flex:1;min-width:150px;font-size:13px;padding:7px 10px;border:1px solid #ddd;border-radius:8px;font-family:inherit"/>
+      <button class="btn" onclick="loadCompanyNews()" style="font-weight:600">검색</button>
+    </div>
+    <div class="filter-row" id="portfolio-symbols"></div>
+    <div id="company-feed"><div class="empty">종목 티커를 입력하세요</div></div>
+  </div>
+
+  <!-- 월가 레이팅 -->
+  <div id="ip-news-analyst" class="ipanel">
+    <div class="info-box">ℹ️ Finnhub 무료: 수십 개 IB의 Buy/Hold/Sell 집계 + 평균 목표가. 레포트 원문은 유료입니다.</div>
+    <div style="display:flex;gap:7px;margin-bottom:.75rem;flex-wrap:wrap">
+      <input id="analyst-sym" placeholder="미국 주식 티커 (예: NVDA, AAPL)" style="flex:1;min-width:150px;font-size:13px;padding:7px 10px;border:1px solid #ddd;border-radius:8px;font-family:inherit"/>
+      <button class="btn" onclick="loadAnalystRating()" style="font-weight:600">조회</button>
+    </div>
+    <div class="filter-row" id="analyst-symbols"></div>
+    <div id="analyst-feed"><div class="empty">티커를 입력하면 월가 컨센서스를 조회합니다</div></div>
+  </div>
+
+  <!-- 실시간 시세 -->
+  <div id="ip-news-quotes" class="ipanel">
+    <div style="display:flex;gap:7px;margin-bottom:.75rem;flex-wrap:wrap">
+      <input id="quote-sym" placeholder="티커 추가 (예: NVDA)" style="flex:1;min-width:120px;font-size:13px;padding:7px 10px;border:1px solid #ddd;border-radius:8px;font-family:inherit"/>
+      <button class="btn" onclick="addQuote()">+ 추가</button>
+      <button class="btn" onclick="refreshQuotes()">↻ 갱신</button>
+    </div>
+    <div class="q-grid" id="quote-grid"><div class="empty">API 키 연결 후 표시</div></div>
+    <div style="font-size:11px;color:#bbb;margin-top:.25rem">* 미국 주식 실시간 · 국내(KS) 15분 딜레이</div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     PAGE 4: 리서치·규제
+═══════════════════════════════════════════ -->
+<div id="page-research" class="page">
+  <div class="inner-tab-bar">
+    <button class="itab on" onclick="swInner('sites','research',this)">🏦 리서치 사이트</button>
+    <button class="itab"    onclick="swInner('reg','research',this)">⚖️ 규제 모니터링</button>
+  </div>
+
+  <!-- 사이트 링크 -->
+  <div id="ip-research-sites" class="ipanel on">
+    <div class="filter-row" id="site-filter">
+      <button class="fbtn on" onclick="siteFilter('all',this)">전체</button>
+      <button class="fbtn" onclick="siteFilter('ib',this)">IB 리서치</button>
+      <button class="fbtn" onclick="siteFilter('news',this)">뉴스</button>
+      <button class="fbtn" onclick="siteFilter('reg',this)">규제 기관</button>
+      <button class="fbtn" onclick="siteFilter('data',this)">데이터·분석</button>
+      <button class="fbtn" onclick="siteFilter('kr',this)">한국</button>
+    </div>
+    <div class="site-grid" id="site-grid"></div>
+  </div>
+
+  <!-- 규제 RSS 실시간 -->
+  <div id="ip-research-reg" class="ipanel">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.875rem;flex-wrap:wrap;gap:8px">
+      <div class="filter-row" id="reg-filter" style="margin-bottom:0">
+        <button class="fbtn on" onclick="regFilter('all',this)">전체</button>
+        <button class="fbtn" onclick="regFilter('sec',this)">SEC</button>
+        <button class="fbtn" onclick="regFilter('ftc',this)">FTC</button>
+        <button class="fbtn" onclick="regFilter('doj',this)">DOJ</button>
+        <button class="fbtn" onclick="regFilter('fed',this)">연준</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <span class="dot-live" id="reg-live-dot" style="width:6px;height:6px;border-radius:50%;background:#bbb;display:inline-block"></span>
+        <span id="reg-upd-txt" style="font-size:11px;color:#888">로딩 대기</span>
+        <button class="btn" onclick="loadRegRSS()">↻ 갱신</button>
+      </div>
+    </div>
+    <div id="reg-feed"><div class="empty">↻ 갱신 버튼을 눌러 실시간 규제 뉴스를 불러오세요</div></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     PAGE 5: 투자 일지
+═══════════════════════════════════════════ -->
+<div id="page-memo" class="page">
+  <div id="memo-list" style="max-height:420px;overflow-y:auto;margin-bottom:.875rem"></div>
+  <div style="border-top:1px solid #e8e8e8;padding-top:.875rem">
+    <div class="tag-btns" id="tag-btns">
+      <button class="tbtn sel" onclick="selTag('general',this)" style="background:#dbeafe;color:#1e40af;border-color:#1e40af">일반</button>
+      <button class="tbtn" onclick="selTag('buy',this)">매수 근거</button>
+      <button class="tbtn" onclick="selTag('sell',this)">매도 근거</button>
+      <button class="tbtn" onclick="selTag('macro',this)">매크로</button>
+      <button class="tbtn" onclick="selTag('review',this)">복기</button>
+      <button class="tbtn" onclick="selTag('idea',this)">아이디어</button>
+    </div>
+    <div class="memo-compose">
+      <textarea id="memo-txt" placeholder="오늘의 투자 메모를 남겨보세요..."></textarea>
+      <button class="btn" onclick="addMemo()" style="align-self:flex-end;padding:8px 14px">전송</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ SCRIPT ══════════ -->
+<script>
+// ─ 글로벌 설정 및 변수 초기화
+const PROXY='https://api.allorigins.win/raw?url=';
+async function proxyFetch(url,ms=8000){
+  const list=[
+    ['https://corsproxy.io/?',false],
+    ['https://api.allorigins.win/raw?url=',true],
+    ['https://api.codetabs.com/v1/proxy?quest=',false]
+  ];
+  const req=([p,enc])=>fetch(enc?p+encodeURIComponent(url):p+url).then(async r=>{
+    if(!r.ok)throw new Error('http '+r.status);
+    const text=await r.text();
+    const t=text.trim();
+    // corsproxy.io는 rate limit 시 HTTP 200 + "Edge: Too Many Requests" 텍스트를 반환하므로
+    // JSON 응답인지 검증 후 accept
+    if(!t.startsWith('{')&&!t.startsWith('['))throw new Error('not-json');
+    return new Response(t,{status:200,headers:{'content-type':'application/json'}});
+  });
+  return Promise.race([
+    Promise.any(list.map(req)),
+    new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),ms))
+  ]);
+}
+let stocks=[],memos=[],selTagV='general',FKEY='',newsCat='general',quoteSymbols=['NVDA','AAPL','TSLA','MSFT'],stkFilter='all',stkMarket='all',fxRate=1400;
+let CKEY=localStorage.getItem('ck')||'';
+let cashKRW=parseFloat(localStorage.getItem('cash_krw'))||0;
+let cashUSD=parseFloat(localStorage.getItem('cash_usd'))||0;
+
+// ─ 메모 태그 설정 객체
+const TAG={
+  general:{bg:'#dbeafe',c:'#1e40af',l:'일반'},
+  buy:{bg:'#dcfce7',c:'#166534',l:'매수근거'},
+  sell:{bg:'#fee2e2',c:'#991b1b',l:'매도근거'},
+  macro:{bg:'#fef3c7',c:'#92400e',l:'매크로'},
+  review:{bg:'#ede9fe',c:'#5b21b6',l:'복기'},
+  idea:{bg:'#f5f5f3',c:'#44403c',l:'아이디어'}
+};
+
+// ─ 로컬스토리지에서 데이터 로드
+try{stocks=JSON.parse(localStorage.getItem('pf_s')||'[]')}catch(e){}
+try{memos=JSON.parse(localStorage.getItem('pf_m')||'[]')}catch(e){}
+try{FKEY=localStorage.getItem('fhkey')||''}catch(e){}
+try{quoteSymbols=JSON.parse(localStorage.getItem('fh_q')||'["NVDA","AAPL","TSLA","MSFT"]')}catch(e){}
+
+// ─ 샘플 데이터 (비어있을 경우)
+if(!stocks.length)stocks=[{name:'삼성전자',ticker:'005930.KS',buy:68000,cur:71500,qty:50,status:'hold'},{name:'SK하이닉스',ticker:'000660.KS',buy:178000,cur:195000,qty:10,status:'buy'},{name:'NVDA',ticker:'NVDA',buy:120,cur:134.5,qty:5,status:'buy'},{name:'카카오',ticker:'035720.KS',buy:42000,cur:38500,qty:20,status:'watch'}];
+
+// ═══════════════════════════════════════════════════════════════
+// 계좌관리 페이지 (Portfolio) - 모든 기능
+// ═══════════════════════════════════════════════════════════════
+
+// ─ 국내 주요 종목 티커 매핑
+const KR_TICKER_MAP = {
+  '삼성전자':'005930.KS','삼성전자우':'005935.KS',
+  'sk하이닉스':'000660.KS','SK하이닉스':'000660.KS',
+  'lg에너지솔루션':'373220.KS','LG에너지솔루션':'373220.KS',
+  '삼성바이오로직스':'207940.KS','현대차':'005380.KS','현대자동차':'005380.KS',
+  '기아':'000270.KS','기아차':'000270.KS','셀트리온':'068270.KS',
+  'POSCO홀딩스':'005490.KS','포스코홀딩스':'005490.KS','포스코':'005490.KS',
+  'LG화학':'051910.KS','lg화학':'051910.KS',
+  '삼성SDI':'006400.KS','삼성sdi':'006400.KS',
+  'KB금융':'105560.KS','kb금융':'105560.KS',
+  '신한지주':'055550.KS','하나금융지주':'086790.KS',
+  '카카오':'035720.KS','카카오뱅크':'323410.KS','카카오페이':'377300.KS',
+  '네이버':'035420.KS','NAVER':'035420.KS',
+  'LG전자':'066570.KS','lg전자':'066570.KS',
+  '현대모비스':'012330.KS','삼성물산':'028260.KS',
+  '한국전력':'015760.KS','KT':'030200.KS','kt':'030200.KS',
+  'SK텔레콤':'017670.KS','sk텔레콤':'017670.KS',
+  'LG디스플레이':'034220.KS','SK이노베이션':'096770.KS',
+  '두산에너빌리티':'034020.KS','한화에어로스페이스':'012450.KS',
+  '크래프톤':'259960.KS','엔씨소프트':'036570.KS','넷마블':'251270.KS',
+  '카카오게임즈':'293490.KS','펄어비스':'263750.KS',
+  '삼성전기':'009150.KS','SK스퀘어':'402340.KS',
+  '현대건설':'000720.KS','GS건설':'006360.KS',
+  '롯데케미칼':'011170.KS','금호석유':'011780.KS',
+  '아모레퍼시픽':'090430.KS','LG생활건강':'051900.KS',
+  '코스맥스':'192820.KS','한미약품':'128940.KS',
+  '유한양행':'000100.KS','녹십자':'006280.KS',
+};
+
+// ─ 미국 주요 종목 한글 → 영문 티커
+const US_TICKER_MAP = {
+  '엔비디아':'NVDA','nvidia':'NVDA','NVIDIA':'NVDA',
+  '애플':'AAPL','apple':'AAPL',
+  '마이크로소프트':'MSFT','microsoft':'MSFT',
+  '구글':'GOOGL','알파벳':'GOOGL','google':'GOOGL',
+  '아마존':'AMZN','amazon':'AMZN',
+  '메타':'META','meta':'META','페이스북':'META',
+  '테슬라':'TSLA','tesla':'TSLA',
+  'AMD':'AMD','amd':'AMD',
+  'TSMC':'TSM','tsmc':'TSM',
+  '브로드컴':'AVGO','broadcom':'AVGO',
+  '퀄컴':'QCOM','qualcomm':'QCOM',
+  '인텔':'INTC','intel':'INTC',
+  '넷플릭스':'NFLX','netflix':'NFLX',
+  '팔란티어':'PLTR','palantir':'PLTR',
+  '코인베이스':'COIN','coinbase':'COIN',
+  '마이크론':'MU','micron':'MU',
+  'JP모건':'JPM','jpmorgan':'JPM',
+  '골드만삭스':'GS','goldman':'GS',
+  '버크셔해서웨이':'BRK-B',
+  '존슨앤존슨':'JNJ','비자':'V','visa':'V',
+  '마스터카드':'MA','mastercard':'MA',
+  '스타벅스':'SBUX','나이키':'NKE','nike':'NKE',
+  '월마트':'WMT','walmart':'WMT',
+};
+
+function resolveTickerFromName(name) {
+  if (!name) return null;
+  const trimmed = name.trim();
+  if (/^[A-Z]{1,5}(-[A-Z])?$/.test(trimmed)) return trimmed;
+  if (/^\d{6}(\.KS|\.KQ)?$/.test(trimmed)) return trimmed.includes('.') ? trimmed : trimmed + '.KS';
+  const lower = trimmed.toLowerCase();
+  for (const [k, v] of Object.entries(KR_TICKER_MAP)) {
+    if (k.toLowerCase() === lower) return v;
+  }
+  for (const [k, v] of Object.entries(US_TICKER_MAP)) {
+    if (k.toLowerCase() === lower) return v;
+  }
+  return null;
+}
+
+async function searchTickerFromYahoo(name) {
+  try {
+    const url = `https://query2.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(name)}&lang=ko-KR&region=KR&quotesCount=3&newsCount=0`;
+    const r = await proxyFetch(url);
+    const data = await r.json();
+    const quotes = data?.quotes;
+    if (!quotes?.length) return null;
+    const stock = quotes.find(q => q.quoteType === 'EQUITY') || quotes[0];
+    return stock?.symbol || null;
+  } catch(e) { return null; }
+}
+
+function updateCashDisplay(){
+  const krw=document.getElementById('cash-krw-txt');
+  const usd=document.getElementById('cash-usd-txt');
+  if(krw)krw.textContent=cashKRW?'₩'+Math.round(cashKRW).toLocaleString():'—';
+  if(usd)usd.textContent=cashUSD?'$'+cashUSD.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}):'—';
+}
+function editCash(type){
+  document.getElementById('cash-'+type+'-view').style.display='none';
+  const form=document.getElementById('cash-'+type+'-form');
+  form.style.display='block';
+  const inp=document.getElementById('cash-'+type);
+  inp.value=type==='krw'?(cashKRW||''):(cashUSD||'');
+  inp.focus();
+}
+function saveCashEdit(type){
+  const val=parseFloat(document.getElementById('cash-'+type).value)||0;
+  if(type==='krw'){cashKRW=val;localStorage.setItem('cash_krw',cashKRW);}
+  else{cashUSD=val;localStorage.setItem('cash_usd',cashUSD);}
+  document.getElementById('cash-'+type+'-form').style.display='none';
+  document.getElementById('cash-'+type+'-view').style.display='flex';
+  updateCashDisplay();
+  renderStocks();
+}
+function cancelCashEdit(type){
+  document.getElementById('cash-'+type+'-form').style.display='none';
+  document.getElementById('cash-'+type+'-view').style.display='flex';
+}
+
+function setStkFilter(v,btn){
+  stkFilter=v;
+  btn.closest('.filter-row').querySelectorAll('[data-g="status"]').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  renderStocks();
+}
+function setStkMarket(v,btn){
+  stkMarket=v;
+  btn.closest('.filter-row').querySelectorAll('[data-g="market"]').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  renderStocks();
+}
+
+function renderStocks(){
+  const tb=document.getElementById('stk-body');
+  const fx=fxRate||1400;
+  const toUSD=x=>(x.market||'us')==='kr'?x.cur*x.qty/fx:x.cur*x.qty;
+  const toBuyUSD=x=>(x.market||'us')==='kr'?x.buy*x.qty/fx:x.buy*x.qty;
+  const held=stocks.filter(x=>x.status==='hold');
+  const tv=held.reduce((s,x)=>s+toUSD(x),0);
+  const tb2=held.reduce((s,x)=>s+toBuyUSD(x),0);
+  const tp=tv-tb2,tr=tb2?(tp/tb2*100):0;
+  const cashTotal=cashUSD+(cashKRW/fx);
+  const grandTotal=tv+cashTotal;
+  const fmtUSD=n=>'$'+n.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+  document.getElementById('m-total').textContent=grandTotal?fmtUSD(grandTotal):'—';
+  const pe=document.getElementById('m-profit');pe.textContent=tv?(tp>=0?'+':'')+fmtUSD(Math.abs(tp)):'—';pe.className='metric-value '+(tp>=0?'up':'down');
+  const re=document.getElementById('m-rate');re.textContent=tv?(tr>=0?'+':'')+tr.toFixed(2)+'%':'—';re.className='metric-value '+(tr>=0?'up':'down');
+  document.getElementById('m-cnt').textContent=stocks.length?stocks.length+'개':'—';
+  const filtered=stocks.map((s,i)=>({s,i})).filter(({s})=>
+    (stkFilter==='all'||s.status===stkFilter)&&(stkMarket==='all'||(s.market||'us')===stkMarket)
+  );
+  tb.innerHTML=filtered.map(({s,i})=>{
+    const mkt=s.market||'us';
+    const isKR=mkt==='kr';
+    const v=s.cur*s.qty;
+    const vUSD=isKR?v/fx:v;
+    const r=(s.cur-s.buy)/s.buy*100,w=tv?vUSD/tv*100:0;
+    const bc=s.status==='buy'?'background:#dcfce7;color:#166534':s.status==='hold'?'background:#fef3c7;color:#92400e':'background:#dbeafe;color:#1e40af';
+    const stateTag=s.marketState?`<span style="font-size:9px;color:#aaa;margin-left:3px">${s.marketState}</span>`:'';
+    const mktBadge=isKR?`<span style="font-size:9px;font-weight:700;padding:1px 5px;border-radius:4px;background:#fef3c7;color:#92400e;margin-right:4px">국</span>`:`<span style="font-size:9px;font-weight:700;padding:1px 5px;border-radius:4px;background:#dbeafe;color:#1e40af;margin-right:4px">미</span>`;
+    const pFmt=n=>isKR?'₩'+Math.round(n).toLocaleString():'$'+n.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+    const evalFmt=isKR?'₩'+Math.round(v).toLocaleString():fmtUSD(v);
+    return`<tr id="sr-${i}"><td style="font-weight:600">${mktBadge}${s.name}</td><td style="font-size:11px;color:#888;font-family:monospace">${s.ticker}</td><td>${pFmt(s.buy)}</td><td style="font-weight:600">${pFmt(s.cur)}${stateTag}</td><td>${s.qty}</td><td>${evalFmt}</td><td class="${r>=0?'up':'down'}" style="font-weight:600">${(r>=0?'+':'')+r.toFixed(2)}%</td><td>${w.toFixed(1)}%</td><td><span style="font-size:11px;font-weight:700;padding:2px 7px;border-radius:20px;${bc}">${s.status==='buy'?'매수':s.status==='hold'?'보유':'관심'}</span></td><td style="white-space:nowrap"><button onclick="editStock(${i})" style="font-size:11px;padding:3px 7px;border:1px solid #ddd;border-radius:6px;background:#fff;cursor:pointer;color:#555;margin-right:4px">편집</button><button onclick="removeStock(${i})" style="font-size:11px;padding:3px 7px;border:1px solid #fecaca;border-radius:6px;background:#fff;cursor:pointer;color:#d63031">삭제</button></td></tr>`;
+  }).join('');
+  localStorage.setItem('pf_s',JSON.stringify(stocks));
+}
+
+async function addStock(){
+  const n=document.getElementById('fn').value.trim();
+  const t=document.getElementById('ft').value.trim().toUpperCase();
+  const b=parseFloat(document.getElementById('fb').value);
+  const q=parseInt(document.getElementById('fq').value)||1;
+  const s=document.getElementById('fs').value;
+  const m=document.getElementById('fm').value;
+  if(!n||isNaN(b))return;
+  let cur = parseFloat(document.getElementById('fc').value);
+  if(isNaN(cur)) cur = 0;
+  let ticker = t || resolveTickerFromName(n) || n.toUpperCase();
+  stocks.push({name:n, ticker:ticker, buy:b, cur:cur, qty:q, status:s, market:m});
+  renderStocks();
+  ['fn','ft','fb','fc','fq'].forEach(id=>document.getElementById(id).value='');
+  const lastIdx = stocks.length - 1;
+  const errEl=document.getElementById('price-err');
+  errEl.style.display='none';
+  const result = await fetchClosePrice(ticker);
+  if(result){ stocks[lastIdx].cur=result.price; stocks[lastIdx].marketState=result.stateLabel; renderStocks(); }
+  else if(cur===0){ errEl.style.display='block'; errEl.textContent=`가격 조회 실패: ${ticker} — 티커를 확인하세요 (예: AAPL, NVDA, 005930.KS)`; }
+}
+
+function removeStock(i){stocks.splice(i,1);renderStocks();}
+
+function editStock(i){
+  const s=stocks[i];
+  const row=document.getElementById('sr-'+i);
+  if(!row)return;
+  const opts=['hold','buy','watch'].map(v=>`<option value="${v}"${s.status===v?' selected':''}>${v==='buy'?'매수':v==='hold'?'보유':'관심'}</option>`).join('');
+  const ist=`font-size:12px;padding:3px 6px;border:1px solid #d97706;border-radius:6px;font-family:inherit;`;
+  const ism=`font-size:11px;padding:3px 5px;border:1px solid #ddd;border-radius:6px;font-family:inherit;`;
+  row.outerHTML=`<tr id="sr-${i}" style="background:#fffef0">
+    <td style="font-weight:600">${s.name}</td>
+    <td style="font-size:11px;color:#888;font-family:monospace">${s.ticker}</td>
+    <td><input id="eb-${i}" type="number" value="${s.buy}" style="${ist}width:80px"/></td>
+    <td style="font-weight:600">${Number(s.cur).toLocaleString()}</td>
+    <td><input id="eq-${i}" type="number" value="${s.qty}" style="${ist}width:60px"/></td>
+    <td colspan="3" style="vertical-align:middle">
+      <span style="font-size:10px;color:#999;margin-right:4px">추가매수:</span>
+      <input id="ea-${i}" type="number" placeholder="추가매수가" style="${ism}width:82px" oninput="calcAvg(${i})"/>
+      <input id="en-${i}" type="number" placeholder="추가수량" style="${ism}width:66px;margin-left:3px" oninput="calcAvg(${i})"/>
+      <span id="avg-hint-${i}" style="font-size:10px;color:#0a8a57;margin-left:5px"></span>
+    </td>
+    <td><select id="es-${i}" style="${ist}width:72px">${opts}</select></td>
+    <td style="white-space:nowrap">
+      <button onclick="saveStock(${i})" style="background:#0a8a57;color:#fff;border:none;border-radius:6px;padding:4px 9px;font-size:12px;cursor:pointer;margin-right:3px">✓</button>
+      <button onclick="renderStocks()" style="background:none;border:1px solid #ddd;border-radius:6px;padding:4px 9px;font-size:12px;cursor:pointer;color:#666">✕</button>
+    </td>
+  </tr>`;
+}
+
+function calcAvg(i){
+  const addP=parseFloat(document.getElementById('ea-'+i)?.value);
+  const addQ=parseFloat(document.getElementById('en-'+i)?.value);
+  if(!isNaN(addP)&&addP>0&&!isNaN(addQ)&&addQ>0){
+    const curB=parseFloat(document.getElementById('eb-'+i)?.value)||stocks[i].buy;
+    const curQ=parseFloat(document.getElementById('eq-'+i)?.value)||stocks[i].qty;
+    const newAvg=Math.round((curB*curQ+addP*addQ)/(curQ+addQ)*100)/100;
+    const newQty=curQ+addQ;
+    document.getElementById('eb-'+i).value=newAvg;
+    document.getElementById('eq-'+i).value=newQty;
+    const hint=document.getElementById('avg-hint-'+i);
+    if(hint)hint.textContent=`→ 평균 ${newAvg.toLocaleString()} / 총 ${newQty}주`;
+  }
+}
+
+function saveStock(i){
+  const b=parseFloat(document.getElementById('eb-'+i)?.value);
+  const q=parseFloat(document.getElementById('eq-'+i)?.value);
+  const s=document.getElementById('es-'+i)?.value;
+  if(!isNaN(b)&&b>0)stocks[i].buy=b;
+  if(!isNaN(q)&&q>0)stocks[i].qty=q;
+  if(s)stocks[i].status=s;
+  renderStocks();
+}
+
+async function fetchClosePrice(ticker){
+  // 한국 종목(.KS/.KQ): 네이버 금융 경유 우선 (Yahoo 프록시 부담 줄이고 당일 종가 정확)
+  if(/\.(KS|KQ)$/i.test(ticker)){
+    const code=ticker.replace(/\.(KS|KQ)$/i,'');
+    try{
+      const res=await proxyFetch(`https://m.stock.naver.com/api/stock/${code}/basic`,7000);
+      const d=await res.json();
+      const raw=d?.closePrice;
+      if(raw){
+        const price=typeof raw==='string'?parseFloat(raw.replace(/,/g,'')):Number(raw);
+        if(price>0)return{price,stateLabel:'종가'};
+      }
+    }catch(e){}
+  }
+  // Yahoo Finance: query1 먼저, 실패 시 query2
+  for(const host of['query1','query2']){
+    try{
+      const url=`https://${host}.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=5d`;
+      const res=await proxyFetch(url);
+      const data=await res.json();
+      const result=data?.chart?.result?.[0];
+      if(result){
+        const closes=result.indicators?.quote?.[0]?.close;
+        const timestamps=result.timestamp;
+        if(closes){
+          for(let j=closes.length-1;j>=0;j--){
+            if(closes[j]){
+              const price=Math.round(closes[j]*100)/100;
+              const d=timestamps?.[j]?new Date(timestamps[j]*1000):null;
+              const dateStr=d?`${d.getMonth()+1}/${d.getDate()} 종가`:'종가';
+              return{price,stateLabel:dateStr};
             }
+          }
         }
+        const p=result.meta?.regularMarketPrice;
+        if(p)return{price:Math.round(p*100)/100,stateLabel:'종가'};
+      }
+    }catch(e){}
+  }
+  // Finnhub 폴백
+  if(FKEY){
+    try{
+      const r=await Promise.race([
+        fetch(`https://finnhub.io/api/v1/quote?symbol=${ticker}&token=${FKEY}`),
+        new Promise((_,rej)=>setTimeout(()=>rej(),4000))
+      ]);
+      const d=await r.json();
+      if(d?.c)return{price:d.c,stateLabel:'종가'};
+    }catch(e){}
+  }
+  return null;
+}
 
-        function saveTodos(todos) {
-            try {
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(todos));
-            } catch (e) {
-                console.error('Failed to save todos:', e);
+async function fetchPrices(){
+  if(!stocks.length)return;
+  document.getElementById('price-err').style.display='none';
+  const errors=[],notFound=[];
+  // 병렬 → 순차 처리: 프록시 rate limit 방지. 각 종목 완료 즉시 UI 갱신.
+  for(let i=0;i<stocks.length;i++){
+    const s=stocks[i];
+    let ticker=s.ticker;
+    if(!ticker||ticker.trim()==='')ticker=resolveTickerFromName(s.name);
+    if(!ticker)ticker=await searchTickerFromYahoo(s.name);
+    if(!ticker){notFound.push(s.name);continue;}
+    const r=await fetchClosePrice(ticker);
+    if(r){
+      stocks[i].cur=r.price;
+      if(r.stateLabel)stocks[i].marketState=r.stateLabel;
+      if(!stocks[i].ticker)stocks[i].ticker=ticker;
+      renderStocks();
+    }else{
+      errors.push(`${s.name}(${ticker})`);
+    }
+    if(i<stocks.length-1)await new Promise(r=>setTimeout(r,900));
+  }
+  const msgs=[];
+  if(notFound.length)msgs.push(`티커 미확인: ${notFound.join(', ')}`);
+  if(errors.length)msgs.push(`조회 실패: ${errors.join(', ')}`);
+  const el=document.getElementById('price-err');
+  if(msgs.length){el.style.display='block';el.textContent=msgs.join(' | ');}
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 뉴스 페이지 (News) - 모든 기능
+// ═══════════════════════════════════════════════════════════════
+
+function initNewsUI(){
+  if(FKEY){document.getElementById('api-key-input').value='••••••••••••••••';document.getElementById('clear-btn').style.display='flex';setKeyStatus('live','연결됨 · 실시간 활성');renderPortfolioChips();loadMarketNews();refreshQuotes();}
+}
+
+async function connectAPI(){
+  const val=document.getElementById('api-key-input').value.trim();if(!val||val.startsWith('•')){setKeyStatus('err','API 키를 입력해주세요');return;}
+  const btn=document.getElementById('connect-btn');btn.disabled=true;btn.textContent='확인 중...';
+  try{const r=await fetch(`https://finnhub.io/api/v1/news?category=general&token=${val}`);if(!r.ok)throw new Error('invalid key');const d=await r.json();if(!Array.isArray(d))throw new Error();FKEY=val;localStorage.setItem('fhkey',FKEY);document.getElementById('api-key-input').value='••••••••••••••••';document.getElementById('clear-btn').style.display='flex';setKeyStatus('live','연결됨 · 실시간 활성');renderPortfolioChips();loadMarketNews();refreshQuotes();displayNews(d);}catch(e){setKeyStatus('err','API 키가 잘못됐습니다');}
+  btn.disabled=false;btn.textContent='연결';
+}
+
+function clearKey(){FKEY='';localStorage.removeItem('fhkey');document.getElementById('api-key-input').value='';document.getElementById('clear-btn').style.display='none';setKeyStatus('wait','API 키를 입력해주세요');}
+
+function setKeyStatus(state,msg){const el=document.getElementById('key-status');const dc=state==='live'?'dot-live':state==='err'?'dot-err':'dot-wait';const tc=state==='live'?'#0a8a57':state==='err'?'#991b1b':'#888';el.innerHTML=`<span class="${dc}"></span><span style="color:${tc}">${msg}</span>`;}
+
+async function loadMarketNews(){
+  if(!FKEY){document.getElementById('news-feed').innerHTML='<div class="empty">🔑 API 키 연결 필요</div>';return;}
+  document.getElementById('news-feed').innerHTML='<div class="empty"><span class="spin">⟳</span> 로딩 중...</div>';
+  try{const r=await fetch(`https://finnhub.io/api/v1/news?category=${newsCat}&token=${FKEY}`);const data=await r.json();displayNews(data);}
+  catch(e){document.getElementById('news-feed').innerHTML=`<div class="err-box">${e.message}</div>`;}
+}
+
+function displayNews(data){
+  const feed=document.getElementById('news-feed');if(!data?.length){feed.innerHTML='<div class="empty">뉴스 없음</div>';return;}
+  feed.innerHTML=data.slice(0,20).map(n=>{const t=n.datetime?new Date(n.datetime*1000).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}):'';const rel=n.related?n.related.split(',').slice(0,4).map(s=>`<span style="background:#f0efec;padding:1px 5px;border-radius:4px;font-size:10px;font-family:monospace">${s.trim()}</span>`).join(' '):'';return`<div class="news-card"><div class="nc-meta"><span class="nc-src">${n.source||'—'}</span><span class="nc-time">${t}</span></div><div class="nc-title"><a href="${n.url||'#'}" target="_blank">${n.headline}</a></div>${rel?`<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:3px">${rel}</div>`:''}<div class="nc-summary">${(n.summary||'').slice(0,150)}…</div></div>`}).join('');
+}
+
+function setNewsCat(cat,btn){newsCat=cat;document.querySelectorAll('#news-cat-filter .fbtn').forEach(b=>b.classList.remove('on'));btn.classList.add('on');loadMarketNews();}
+
+async function loadCompanyNews(){
+  const sym=document.getElementById('company-sym').value.trim().toUpperCase();if(!sym)return;
+  if(!FKEY){document.getElementById('company-feed').innerHTML='<div class="empty">🔑 API 키 연결 필요</div>';return;}
+  document.getElementById('company-feed').innerHTML='<div class="empty"><span class="spin">⟳</span> 로딩...</div>';
+  const today=new Date().toISOString().split('T')[0];const from=new Date(Date.now()-7*86400000).toISOString().split('T')[0];
+  try{const r=await fetch(`https://finnhub.io/api/v1/company-news?symbol=${sym}&from=${from}&to=${today}&token=${FKEY}`);const data=await r.json();const feed=document.getElementById('company-feed');if(!data?.length){feed.innerHTML=`<div class="empty">${sym} 최근 7일 뉴스 없음</div>`;return;}feed.innerHTML=data.slice(0,15).map(n=>{const t=new Date(n.datetime*1000).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});return`<div class="news-card"><div class="nc-meta"><span class="nc-src">${n.source||'—'}</span><span class="nc-time">${t}</span><span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;background:#dcfce7;color:#166534">${sym}</span></div><div class="nc-title"><a href="${n.url||'#'}" target="_blank">${n.headline}</a></div><div class="nc-summary">${(n.summary||'').slice(0,130)}…</div></div>`}).join('');}catch(e){document.getElementById('company-feed').innerHTML=`<div class="err-box">${e.message}</div>`;}
+}
+
+async function loadAnalystRating(sym){
+  const input=sym||document.getElementById('analyst-sym').value.trim().toUpperCase();if(!input)return;
+  if(!FKEY){document.getElementById('analyst-feed').innerHTML='<div class="empty">🔑 API 키 연결 필요</div>';return;}
+  document.getElementById('analyst-feed').innerHTML='<div class="empty"><span class="spin">⟳</span> 조회 중...</div>';
+  try{const [recR,ptR]=await Promise.allSettled([fetch(`https://finnhub.io/api/v1/stock/recommendation?symbol=${input}&token=${FKEY}`).then(r=>r.json()),fetch(`https://finnhub.io/api/v1/stock/price-target?symbol=${input}&token=${FKEY}`).then(r=>r.json())]);const rec=recR.status==='fulfilled'?recR.value:[];const pt=ptR.status==='fulfilled'?ptR.value:null;const feed=document.getElementById('analyst-feed');if(!rec?.length){feed.innerHTML=`<div class="empty">${input} 데이터 없음 (미국 상장 종목만)</div>`;return;}const l=rec[0];const tot=(l.buy||0)+(l.hold||0)+(l.sell||0)+(l.strongBuy||0)+(l.strongSell||0);const bt=(l.buy||0)+(l.strongBuy||0);const ht=l.hold||0;const st=(l.sell||0)+(l.strongSell||0);const bp=tot?Math.round(bt/tot*100):0;const hp=tot?Math.round(ht/tot*100):0;const sp=tot?Math.round(st/tot*100):0;const con=bp>=60?{l:'Strong Buy',bg:'#dcfce7',c:'#166534'}:bp>=40?{l:'Buy',bg:'#d1fae5',c:'#065f46'}:hp>=50?{l:'Hold',bg:'#fef3c7',c:'#92400e'}:{l:'Sell',bg:'#fee2e2',c:'#991b1b'};let html=`<div style="background:#fff;border:1px solid #e8e8e8;border-radius:12px;padding:14px 16px;margin-bottom:8px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><div><div style="font-size:16px;font-weight:700">${input}</div><div style="font-size:11px;color:#888">${l.period||''} · 총 ${tot}개 기관</div></div><span style="background:${con.bg};color:${con.c};font-size:12px;font-weight:700;padding:4px 12px;border-radius:20px">${con.l}</span></div><div class="consensus-bar"><div class="cb-buy" style="width:${bp}%"></div><div class="cb-hold" style="width:${hp}%"></div><div class="cb-sell" style="width:${sp}%"></div></div><div style="display:flex;gap:12px;font-size:11px;color:#666;margin-bottom:6px"><span style="color:#0a8a57">매수 ${bp}% (${bt})</span><span style="color:#d97706">보유 ${hp}% (${ht})</span><span style="color:#d63031">매도 ${sp}% (${st})</span></div>`;if(pt?.targetMean){html+=`<div style="font-size:12px;color:#666;border-top:1px solid #f5f5f3;padding-top:8px;display:flex;gap:16px;flex-wrap:wrap"><span>평균 목표가 <strong style="color:#1a1a1a">$${pt.targetMean.toFixed(2)}</strong></span><span>최고 <strong style="color:#0a8a57">$${pt.targetHigh?.toFixed(2)}</strong></span><span>최저 <strong style="color:#d63031">$${pt.targetLow?.toFixed(2)}</strong></span></div>`;}html+='</div>';if(rec.length>1){html+=rec.slice(0,3).map(r=>{const t2=(r.buy||0)+(r.strongBuy||0);const t3=(r.sell||0)+(r.strongSell||0);const t4=r.hold||0;const tot=t2+t3+t4;const bp=tot?Math.round(t2/tot*100):0;const hp=tot?Math.round(t4/tot*100):0;return`<div style="background:#fff;border:1px solid #e8e8e8;border-radius:12px;padding:11px 14px;margin-bottom:6px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px"><span style="font-weight:600">${r.period}</span><span style="color:#888">총 ${tot}개</span></div><div class="consensus-bar"><div class="cb-buy" style="width:${bp}%"></div><div class="cb-hold" style="width:${hp}%"></div><div class="cb-sell" style="width:${tot?Math.round(t3/tot*100):0}%"></div></div><div style="font-size:11px;margin-top:4px;display:flex;gap:10px"><span style="color:#0a8a57">매수 ${t2}</span><span style="color:#d97706">보유 ${t4}</span><span style="color:#d63031">매도 ${t3}</span></div></div>`}).join('');}feed.innerHTML=html;}catch(e){document.getElementById('analyst-feed').innerHTML=`<div class="err-box">${e.message}</div>`;}
+}
+
+async function refreshQuotes(){
+  if(!FKEY){document.getElementById('quote-grid').innerHTML='<div class="empty">🔑 API 키 연결 필요</div>';return;}
+  document.getElementById('quote-grid').innerHTML=quoteSymbols.map(s=>`<div class="q-card"><div class="q-sym">${s}</div><div class="q-price neu"><span class="spin">⟳</span></div></div>`).join('');
+  const res=await Promise.allSettled(quoteSymbols.map(sym=>fetch(`https://finnhub.io/api/v1/quote?symbol=${sym}&token=${FKEY}`).then(r=>r.json()).then(d=>({sym,...d}))));
+  document.getElementById('quote-grid').innerHTML=res.map((r,i)=>{if(r.status!=='fulfilled')return`<div class="q-card"><div class="q-sym">${quoteSymbols[i]}</div><div class="q-price neu">오류</div></div>`;const d=r.value;const cls=d.dp==null?'neu':d.dp>=0?'up':'down';return`<div class="q-card"><div class="q-sym">${d.sym}</div><div class="q-price ${cls}">$${d.c?d.c.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}):'—'}</div><div class="q-chg ${cls}">${d.dp!=null?(d.dp>=0?'▲ +':'▼ ')+Math.abs(d.dp).toFixed(2)+'%':'—'}</div></div>`}).join('');
+  localStorage.setItem('fh_q',JSON.stringify(quoteSymbols));
+}
+
+function addQuote(){const sym=document.getElementById('quote-sym').value.trim().toUpperCase();if(!sym||quoteSymbols.includes(sym))return;quoteSymbols.push(sym);document.getElementById('quote-sym').value='';refreshQuotes();}
+
+function renderPortfolioChips(){
+  const tickers=(JSON.parse(localStorage.getItem('pf_s')||'[]')).map(s=>s.ticker).filter(t=>t&&!/^\d/.test(t)&&t.length<10);
+  if(!tickers.length)return;
+  const chip=(t,fn)=>`<button class="fbtn" onclick="${fn}('${t}')">${t}</button>`;
+  document.getElementById('portfolio-symbols').innerHTML=`<span style="font-size:11px;color:#bbb;align-self:center">내 종목:</span>`+tickers.map(t=>chip(t,`document.getElementById('company-sym').value='${t}';loadCompanyNews`)).join('');
+  document.getElementById('analyst-symbols').innerHTML=`<span style="font-size:11px;color:#bbb;align-self:center">내 종목:</span>`+tickers.map(t=>`<button class="fbtn" onclick="document.getElementById('analyst-sym').value='${t}';loadAnalystRating('${t}')">${t}</button>`).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 투자 일지 (Memo) - 모든 기능
+// ═══════════════════════════════════════════════════════════════
+
+function selTag(tag,btn){
+  selTagV=tag;
+  document.querySelectorAll('.tbtn').forEach(b=>{
+    b.classList.remove('sel');
+    b.style.background='';
+    b.style.color='';
+    b.style.borderColor='';
+  });
+  const c=TAG[tag];
+  btn.classList.add('sel');
+  btn.style.background=c.bg;
+  btn.style.color=c.c;
+  btn.style.borderColor=c.c;
+}
+
+function addMemo(){
+  const txt=document.getElementById('memo-txt').value.trim();
+  if(!txt)return;
+  memos.unshift({
+    id:Date.now(),
+    text:txt,
+    tag:selTagV,
+    time:new Date().toISOString()
+  });
+  localStorage.setItem('pf_m',JSON.stringify(memos));
+  document.getElementById('memo-txt').value='';
+  renderMemos();
+}
+
+function renderMemos(){
+  const el=document.getElementById('memo-list');
+  if(!memos.length){
+    el.innerHTML='<div style="color:#888;font-size:13px;padding:.5rem 0">첫 투자 일지를 남겨보세요.</div>';
+    return;
+  }
+  const grp={};
+  memos.forEach(m=>{
+    const k=new Date(m.time).toLocaleDateString('ko-KR',{month:'long',day:'numeric',weekday:'short'});
+    if(!grp[k])grp[k]=[];
+    grp[k].push(m);
+  });
+  el.innerHTML=Object.entries(grp).map(([d,items])=>`
+    <div style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;padding:10px 0 6px;border-top:1px solid #e8e8e8;margin-top:4px">${d}</div>
+    ${items.map(m=>{
+      const c=TAG[m.tag]||TAG.general;
+      return`<div class="memo-card">
+        <div class="memo-meta">
+          <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:${c.bg};color:${c.c}">${c.l}</span>
+          <span class="memo-time">${new Date(m.time).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})}</span>
+        </div>
+        <div class="memo-text">${m.text}</div>
+      </div>`;
+    }).join('')}
+  `).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 페이지 및 탭 네비게이션
+// ═══════════════════════════════════════════════════════════════
+
+// ─ 페이지 및 탭 네비게이션
+function goPage(name,btn){
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('on'));
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));
+  btn.classList.add('on');
+  document.getElementById('page-'+name).classList.add('on');
+  if(name==='indices')loadAllIndices();
+  if(name==='news')initNewsUI();
+}
+
+function swInner(panel,page,btn){
+  const prefix=`ip-${page}-`;
+  document.querySelectorAll(`[id^="${prefix}"]`).forEach(p=>p.classList.remove('on'));
+  btn.closest('.inner-tab-bar').querySelectorAll('.itab').forEach(t=>t.classList.remove('on'));
+  document.getElementById(prefix+panel).classList.add('on');
+  btn.classList.add('on');
+}
+// ─ 지수 및 환율
+async function loadFX(){
+  // ── USD/KRW 종가 환율 (야후 파이낸스 KRW=X)
+  let fxLoaded=false;
+  for(const host of['query1','query2']){
+    if(fxLoaded)break;
+    try{
+      const res=await proxyFetch(`https://${host}.finance.yahoo.com/v8/finance/chart/KRW%3DX?interval=1d&range=5d`);
+      const data=await res.json();
+      const result=data?.chart?.result?.[0];
+      const closes=result?.indicators?.quote?.[0]?.close;
+      const timestamps=result?.timestamp;
+      if(closes){
+        for(let j=closes.length-1;j>=0;j--){
+          if(closes[j]){
+            fxRate=closes[j];
+            const d=timestamps?.[j]?new Date(timestamps[j]*1000):null;
+            const fxRow=document.getElementById('fx-date-row');
+            if(d){
+              const ds=`${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일`;
+              if(fxRow)fxRow.textContent=`${ds} 종가기준 환율 · $1 = ₩${Math.round(fxRate).toLocaleString()}`;
             }
+            renderStocks();
+            fxLoaded=true;
+            break;
+          }
         }
+      }
+    }catch(e){}
+  }
+  // ── 폴백: exchangerate-api
+  if(!fxLoaded){
+    try{
+      const r=await fetch('https://api.exchangerate-api.com/v4/latest/USD');
+      const d=await r.json();
+      fxRate=d.rates.KRW||1400;
+      const fxRow=document.getElementById('fx-date-row');
+      if(fxRow)fxRow.textContent=`실시간 환율 · $1 = ₩${Math.round(fxRate).toLocaleString()}`;
+      renderStocks();
+    }catch(e){}
+  }
+  // ── 지수 페이지 환율 카드 업데이트
+  try{
+    const r=await fetch('https://api.exchangerate-api.com/v4/latest/USD');const d=await r.json();
+    document.getElementById('idx-fx').innerHTML=[['USD/KRW','KRW',1],['USD/JPY','JPY',1],['EUR/USD','EUR',0],['USD/CNY','CNY',1]].map(([n,c])=>{
+      const v=c==='EUR'?(1/d.rates.EUR):d.rates[c];
+      return`<div class="idx-card"><div class="idx-sec">환율</div><div class="idx-name">${n}</div><div class="idx-val neu">${c==='KRW'?Math.round(v).toLocaleString():v.toFixed(4)}</div></div>`;
+    }).join('');
+  }catch(e){document.getElementById('idx-fx').innerHTML='<div style="font-size:12px;color:#d63031;padding:8px">환율 API 오류</div>';}
+}
+async function loadCrypto(){
+  try{const r=await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana,binancecoin&vs_currencies=usd&include_24hr_change=true');const d=await r.json();
+    document.getElementById('idx-crypto').innerHTML=[['BTC','bitcoin'],['ETH','ethereum'],['SOL','solana'],['BNB','binancecoin']].map(([sym,id])=>{
+      const p=d[id]?.usd,chg=d[id]?.usd_24h_change;const cls=chg==null?'neu':chg>=0?'up':'down';
+      return`<div class="idx-card"><div class="idx-sec">코인</div><div class="idx-name">${sym}</div><div class="idx-val ${cls}">$${p?p.toLocaleString(undefined,{maximumFractionDigits:0}):'—'}</div>${chg!=null?`<div class="idx-chg ${cls}">${chg>=0?'▲':'▼'} ${Math.abs(chg).toFixed(2)}%</div>`:''}</div>`;
+    }).join('');
+  }catch(e){document.getElementById('idx-crypto').innerHTML='<div style="font-size:12px;color:#d63031;padding:8px">CoinGecko 오류</div>';}
+}
+async function loadYahoo(sym){
+  try{const r=await proxyFetch(`https://query2.finance.yahoo.com/v8/finance/chart/${sym}?interval=2m&range=1d&includePrePost=true`);const m=(await r.json())?.chart?.result?.[0]?.meta;if(!m)return null;const state=m.marketState||'CLOSED';let price=m.regularMarketPrice;let stateLabel='';if(state==='PRE'&&m.preMarketPrice){price=m.preMarketPrice;stateLabel=' 🌅프리';}else if(state==='POST'&&m.postMarketPrice){price=m.postMarketPrice;stateLabel=' 🌙애프터';}else if(state==='REGULAR'){stateLabel=' 🟢실시간';}else{stateLabel=' 종가';}const prev=m.previousClose||m.chartPreviousClose;const chg=prev?((price-prev)/prev*100):null;return{val:price,chg,state,stateLabel};}catch(e){return null;}
+}
+async function loadGroup(items,elId,sec){
+  const res=await Promise.allSettled(items.map(i=>loadYahoo(i.s)));document.getElementById(elId).innerHTML=items.map((item,i)=>{const d=res[i].status==='fulfilled'?res[i].value:null;if(!d)return`<div class="idx-card"><div class="idx-sec">${sec}</div><div class="idx-name">${item.n}</div><div class="idx-val neu">—</div></div>`;const cls=d.chg==null?'neu':d.chg>=0?'up':'down';const fmt=d.val>=1000?d.val.toLocaleString(undefined,{maximumFractionDigits:0}):d.val.toFixed(2);return`<div class="idx-card"><div class="idx-sec">${sec}<span style="font-size:9px;color:#aaa;margin-left:4px">${d.stateLabel||''}</span></div><div class="idx-name">${item.n}</div><div class="idx-val ${cls}">${fmt}</div>${d.chg!=null?`<div class="idx-chg ${cls}">${d.chg>=0?'▲':'▼'} ${Math.abs(d.chg).toFixed(2)}%</div>`:''}</div>`;}).join('');
+}
+async function loadBitcoin(){
+  try{const r=await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true');const d=await r.json();const p=d.bitcoin?.usd,chg=d.bitcoin?.usd_24h_change;const cls=chg==null?'neu':chg>=0?'up':'down';document.getElementById('idx-crypto').innerHTML=`<div class="idx-card"><div class="idx-sec">가상화폐</div><div class="idx-name">BTC</div><div class="idx-val ${cls}">$${p?p.toLocaleString(undefined,{maximumFractionDigits:0}):'—'}</div>${chg!=null?`<div class="idx-chg ${cls}">${chg>=0?'▲':'▼'} ${Math.abs(chg).toFixed(2)}%</div>`:''}</div>`;}catch(e){document.getElementById('idx-crypto').innerHTML='<div style="font-size:12px;color:#d63031;padding:8px">Bitcoin 로드 실패</div>';}
+}
+async function loadAllIndices(){
+  document.getElementById('idx-upd').textContent='갱신 중...';await Promise.all([loadGroup([{s:'^KS11',n:'KOSPI'},{s:'^KQ11',n:'KOSDAQ'}],'idx-kr','국내'),loadGroup([{s:'^GSPC',n:'S&P 500'},{s:'^IXIC',n:'NASDAQ'},{s:'^DJI',n:'DOW'}],'idx-us','미국'),loadGroup([{s:'NQ=F',n:'NASDAQ 100선물'},{s:'ES=F',n:'S&P 500선물'},{s:'RTY=F',n:'Russell 2000선물'}],'idx-futures','선물'),loadBitcoin()]);document.getElementById('idx-upd').textContent='업데이트: '+new Date().toLocaleTimeString('ko-KR');
+}
 
-        function loadBookmarks() {
-            try {
-                const stored = localStorage.getItem(BOOKMARKS_STORAGE_KEY);
-                return stored ? JSON.parse(stored) : [];
-            } catch (e) {
-                return [];
-            }
-        }
+// ─ 티커 바 빌드 (제거됨 - 지수·환율 페이지로 이동)
+async function buildTicker(){}
 
-        function saveBookmarks(bookmarks) {
-            try {
-                localStorage.setItem(BOOKMARKS_STORAGE_KEY, JSON.stringify(bookmarks));
-            } catch (e) {
-                console.error('Failed to save bookmarks:', e);
-            }
-        }
+// ─ 리서치 사이트
+const SITES=[{name:'JPMorgan Research',url:'https://www.jpmorgan.com/insights/research',desc:'글로벌 주식·채권·매크로',badge:'IB',bc:'#dbeafe',bcc:'#1e40af',cat:'ib'},{name:'Goldman Sachs',url:'https://www.goldmansachs.com/insights/',desc:'Equity Research 공개 레포트',badge:'IB',bc:'#dcfce7',bcc:'#15803d',cat:'ib'},{name:'Morgan Stanley',url:'https://www.morganstanley.com/ideas',desc:'투자 인사이트 & 리서치',badge:'IB',bc:'#ede9fe',bcc:'#6d28d9',cat:'ib'},{name:'BlackRock BII',url:'https://www.blackrock.com/us/individual/insights/blackrock-investment-institute',desc:'주간 매크로 아웃룩',badge:'IB',bc:'#fee2e2',bcc:'#991b1b',cat:'ib'},{name:'BofA Research',url:'https://business.bofa.com/en-us/content/global-research.html',desc:'테마·매크로 리포트',badge:'IB',bc:'#fef3c7',bcc:'#92400e',cat:'ib'},{name:'Bloomberg',url:'https://www.bloomberg.com/markets',desc:'실시간 시세·뉴스',badge:'뉴스',bc:'#f5f5f3',bcc:'#44403c',cat:'news'},{name:'WSJ Markets',url:'https://www.wsj.com/finance',desc:'애널리스트 의견 & 실적',badge:'뉴스',bc:'#f5f5f3',bcc:'#44403c',cat:'news'},{name:'Reuters',url:'https://www.reuters.com/finance/',desc:'실시간 금융·M&A 속보',badge:'뉴스',bc:'#f5f5f3',bcc:'#44403c',cat:'news'},{name:'CNBC Markets',url:'https://www.cnbc.com/markets/',desc:'어닝스 콜·애널리스트 콜',badge:'뉴스',bc:'#dbeafe',bcc:'#1e40af',cat:'news'},{name:'FT Markets',url:'https://www.ft.com/markets',desc:'글로벌·유럽 커버리지',badge:'뉴스',bc:'#fef3c7',bcc:'#78350f',cat:'news'},{name:'Seeking Alpha',url:'https://seekingalpha.com/market-news/all',desc:'종목별 Bull/Bear 분석',badge:'뉴스',bc:'#dcfce7',bcc:'#166534',cat:'news'},{name:'SEC EDGAR',url:'https://efts.sec.gov/LATEST/search-index?q=&forms=8-K',desc:'기업 8-K·10-K 실시간 공시',badge:'규제',bc:'#dbeafe',bcc:'#1e40af',cat:'reg'},{name:'SEC 보도자료',url:'https://www.sec.gov/newsroom/press-releases',desc:'SEC 공식 제재·승인 발표',badge:'규제',bc:'#dbeafe',bcc:'#1e40af',cat:'reg'},{name:'DOJ Antitrust',url:'https://www.justice.gov/atr/news',desc:'반독점·빅테크 소송 현황',badge:'규제',bc:'#fee2e2',bcc:'#991b1b',cat:'reg'},{name:'FTC News',url:'https://www.ftc.gov/news-events/news',desc:'AI·데이터·플랫폼 규제',badge:'규제',bc:'#fee2e2',bcc:'#991b1b',cat:'reg'},{name:'Federal Reserve',url:'https://www.federalreserve.gov/newsevents.htm',desc:'FOMC 의사록·파월 연설',badge:'규제',bc:'#dbeafe',bcc:'#1e3a8a',cat:'reg'},{name:'한국 금융위',url:'https://www.fsc.go.kr/no010101',desc:'가상자산·증권 규제 발표',badge:'규제KR',bc:'#dcfce7',bcc:'#064e3b',cat:'reg'},{name:'공정거래위원회',url:'https://www.ftc.go.kr/www/selectReportUserList.do?key=10',desc:'플랫폼·대기업 규제',badge:'규제KR',bc:'#dcfce7',bcc:'#064e3b',cat:'reg'},{name:'Finviz',url:'https://finviz.com',desc:'섹터 히트맵·종목 스크리너',badge:'데이터',bc:'#ede9fe',bcc:'#5b21b6',cat:'data'},{name:'Unusual Whales',url:'https://unusualwhales.com',desc:'옵션플로우·다크풀 실시간',badge:'데이터',bc:'#fef3c7',bcc:'#92400e',cat:'data'},{name:'Fintel.io',url:'https://fintel.io',desc:'기관 13F 수급·Short Interest',badge:'데이터',bc:'#fef3c7',bcc:'#92400e',cat:'data'},{name:'GuruFocus',url:'https://www.gurufocus.com/news/index',desc:'내부자 거래·DCF 밸류에이션',badge:'데이터',bc:'#ede9fe',bcc:'#4c1d95',cat:'data'},{name:'Macrotrends',url:'https://www.macrotrends.net',desc:'장기 차트·PER·EPS 히스토리',badge:'데이터',bc:'#ede9fe',bcc:'#5b21b6',cat:'data'},{name:'StockTitan',url:'https://www.stocktitan.net',desc:'실시간 8-K·어닝스 트랜스크립트',badge:'데이터',bc:'#ede9fe',bcc:'#5b21b6',cat:'data'},{name:'KIND 전자공시',url:'https://kind.krx.co.kr',desc:'KRX 국내 전 종목 실시간 공시',badge:'한국',bc:'#dcfce7',bcc:'#064e3b',cat:'kr'},{name:'네이버 증권',url:'https://finance.naver.com/news/news_list.naver?mode=LSS3D&section_id=101&section_id2=258&section_id3=401',desc:'국내 기업 공시·IR 뉴스',badge:'한국',bc:'#dcfce7',bcc:'#064e3b',cat:'kr'},{name:'한국경제',url:'https://www.hankyung.com/finance',desc:'국내 증시·증권사 리포트 요약',badge:'한국',bc:'#dcfce7',bcc:'#166534',cat:'kr'},{name:'fnguide 리서치',url:'https://www.fnguide.com/home/Research',desc:'국내 증권사 목표가·투자의견',badge:'한국',bc:'#dcfce7',bcc:'#166534',cat:'kr'}];
+let siteCurFilter='all';
+function siteFilter(cat,btn){siteCurFilter=cat;document.querySelectorAll('#site-filter .fbtn').forEach(b=>b.classList.remove('on'));btn.classList.add('on');renderSites();}
+function renderSites(){const data=siteCurFilter==='all'?SITES:SITES.filter(s=>s.cat===siteCurFilter);document.getElementById('site-grid').innerHTML=data.map(s=>`<a href="${s.url}" target="_blank" rel="noopener" class="site-card"><div class="sc-top"><div class="sc-name">${s.name}</div><span class="pill" style="background:${s.bc};color:${s.bcc}">${s.badge}</span></div><div class="sc-desc">${s.desc}</div></a>`).join('');}
 
-        function getNewsCache(category) {
-            const key = NEWS_CACHE_PREFIX + category;
-            const cached = sessionStorage.getItem(key);
-            if (!cached) return null;
-            try {
-                const data = JSON.parse(cached);
-                if (Date.now() - data.timestamp > NEWS_CACHE_TTL) {
-                    sessionStorage.removeItem(key);
-                    return null;
-                }
-                return data.articles;
-            } catch (e) {
-                return null;
-            }
-        }
+// ─ 규제 RSS
+const REG_FEEDS=[{key:'sec',name:'SEC',label:'미국',url:'https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&type=&dateb=&owner=include&count=15&search_text=&output=atom',color:'#1e40af',bg:'#dbeafe'},{key:'ftc',name:'FTC',label:'미국',url:'https://www.ftc.gov/feeds/press-release.xml',color:'#991b1b',bg:'#fee2e2'},{key:'doj',name:'DOJ',label:'미국',url:'https://www.justice.gov/feed/atom/news',color:'#166534',bg:'#dcfce7'},{key:'fed',name:'연준',label:'미국',url:'https://www.federalreserve.gov/feeds/press_all.xml',color:'#5b21b6',bg:'#ede9fe'}];
+let regCurFilter='all',regAllItems=[];
+async function loadRegRSS(){const feed=document.getElementById('reg-feed'),dot=document.getElementById('reg-live-dot'),txt=document.getElementById('reg-upd-txt');feed.innerHTML='<div class="empty"><span class="spin">⟳</span> 실시간 규제 뉴스 로딩 중...</div>';dot.style.background='#d97706';txt.textContent='로딩 중...';regAllItems=[];const results=await Promise.allSettled(REG_FEEDS.map(async feed=>{const r=await fetch(PROXY+encodeURIComponent(feed.url)),d=await r.json(),parser=new DOMParser(),xml=parser.parseFromString(d.contents,'text/xml'),entries=Array.from(xml.querySelectorAll('entry, item')).slice(0,8);return entries.map(el=>({key:feed.key,source:feed.name,label:feed.label,color:feed.color,bg:feed.bg,title:el.querySelector('title')?.textContent?.trim()||'',summary:(el.querySelector('summary, description')?.textContent||'').replace(/<[^>]+>/g,'').trim().slice(0,180),link:el.querySelector('link')?.textContent?.trim()||el.querySelector('link')?.getAttribute('href')||'#',date:el.querySelector('updated, pubDate')?.textContent?.trim()||''}));}));results.forEach(r=>{if(r.status==='fulfilled')regAllItems.push(...r.value);});regAllItems.sort((a,b)=>new Date(b.date)-new Date(a.date));dot.style.background=regAllItems.length?'#0a8a57':'#d63031';dot.style.animation=regAllItems.length?'pulse 2s infinite':'none';txt.textContent=regAllItems.length?'업데이트: '+new Date().toLocaleTimeString('ko-KR'):'로드 실패';renderReg();}
+function regFilter(cat,btn){regCurFilter=cat;document.querySelectorAll('#reg-filter .fbtn').forEach(b=>b.classList.remove('on'));btn.classList.add('on');renderReg();}
+function renderReg(){const feed=document.getElementById('reg-feed');let data=regCurFilter==='all'?regAllItems:regAllItems.filter(d=>d.key===regCurFilter);if(!data.length){feed.innerHTML='<div class="empty">↻ 갱신 버튼을 눌러 실시간 규제 뉴스를 불러오세요</div>';return;}feed.innerHTML=data.map(d=>{const t=d.date?new Date(d.date).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}):'';return`<div class="reg-card"><div class="reg-head"><div class="reg-title"><a href="${d.link}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none;hover:underline">${d.title}</a></div><span class="reg-status" style="background:${d.bg};color:${d.color}">${d.source}</span></div><div class="reg-body">${d.summary||'내용 없음'}</div><div class="reg-foot"><span>${d.source}</span><span>${t}</span><span style="padding:1px 7px;border-radius:20px;background:${d.bg};color:${d.color}">${d.label}</span></div></div>`}).join('');}
 
-        function setNewsCache(category, articles) {
-            const key = NEWS_CACHE_PREFIX + category;
-            try {
-                sessionStorage.setItem(key, JSON.stringify({ timestamp: Date.now(), articles }));
-            } catch (e) {}
-        }
+// ─ 보유 종목 최신 소식 · AI 키 관리
+function togglePnKeyRow(){
+  const row=document.getElementById('pn-key-row');
+  const visible=row.style.display!=='none'&&row.style.display!=='';
+  row.style.display=visible?'none':'flex';
+  if(!visible&&CKEY)document.getElementById('pn-claude-key').value='••••••••••••••••';
+}
+function savePnKey(){
+  const v=document.getElementById('pn-claude-key').value.trim();
+  if(!v||v.startsWith('•'))return;
+  CKEY=v;localStorage.setItem('ck',CKEY);
+  document.getElementById('pn-claude-key').value='••••••••••••••••';
+  document.getElementById('pn-ai-dot').style.display='inline-block';
+  document.getElementById('pn-key-row').style.display='none';
+}
+function clearPnKey(){
+  CKEY='';localStorage.removeItem('ck');
+  document.getElementById('pn-claude-key').value='';
+  document.getElementById('pn-ai-dot').style.display='none';
+}
+async function translateNewsItems(items){
+  if(!CKEY||!items.length)return null;
+  const prompt='다음 뉴스들을 각각 한국어로 핵심만 1~2문장 요약해줘. JSON 배열만 출력 (예: ["요약1","요약2"]):\n\n'+
+    items.map((item,i)=>`${i+1}. [${item.ticker}] ${item.news.headline}\n${item.news.summary||''}`).join('\n\n');
+  try{
+    const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${CKEY}`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({contents:[{parts:[{text:prompt}]}]})
+    });
+    const data=await r.json();
+    if(data.error)return null;
+    const txt=data.candidates?.[0]?.content?.parts?.[0]?.text||'[]';
+    return JSON.parse(txt.replace(/```json|```/g,'').trim());
+  }catch(e){return null;}
+}
+async function loadPortfolioNews(){
+  const feed=document.getElementById('portfolio-news-feed');
+  if(!stocks.length){feed.innerHTML='<div style="font-size:12px;color:#aaa;padding:6px 0">보유 종목이 없습니다</div>';return;}
+  const targets=stocks.filter(s=>s.ticker&&s.ticker.trim()!=='');
+  if(!targets.length){feed.innerHTML='<div style="font-size:12px;color:#aaa;padding:6px 0">티커 정보가 없습니다</div>';return;}
+  feed.innerHTML='<div style="font-size:12px;color:#888;padding:6px 0"><span class="spin">⟳</span> 최신 소식 로딩 중...</div>';
+  const today=new Date().toISOString().split('T')[0];
+  const from=new Date(Date.now()-7*86400000).toISOString().split('T')[0];
+  const results=await Promise.allSettled(targets.map(async s=>{
+    const isKR=/\.(KS|KQ)$/i.test(s.ticker);
+    if(isKR){
+      const code=s.ticker.replace(/\.(KS|KQ)$/i,'');
+      try{
+        const res=await proxyFetch(`https://m.stock.naver.com/api/news/stock/${code}?pageSize=3`,7000);
+        const d=await res.json();
+        const list=d?.list||d?.items||[];
+        if(!list.length)return{name:s.name,ticker:s.ticker,isKR:true,news:null};
+        const n=list[0];
+        const rawDate=n.publishDate||n.wdate||'';
+        const ts=rawDate?new Date(rawDate).getTime()/1000:null;
+        return{name:s.name,ticker:s.ticker,isKR:true,news:{headline:n.title||n.officeNewsTitle||'',url:n.linkUrl||n.url||'#',source:n.officeName||'네이버',datetime:ts,summary:''}};
+      }catch(e){return{name:s.name,ticker:s.ticker,isKR:true,news:null};}
+    }else{
+      if(!FKEY)return{name:s.name,ticker:s.ticker,isKR:false,news:null,noKey:true};
+      try{
+        const r=await fetch(`https://finnhub.io/api/v1/company-news?symbol=${s.ticker}&from=${from}&to=${today}&token=${FKEY}`);
+        const data=await r.json();
+        return{name:s.name,ticker:s.ticker,isKR:false,news:Array.isArray(data)&&data.length?data[0]:null};
+      }catch(e){return{name:s.name,ticker:s.ticker,isKR:false,news:null};}
+    }
+  }));
+  const items=results.filter(r=>r.status==='fulfilled'&&r.value.news).map(r=>r.value);
+  const noKeyItems=results.filter(r=>r.status==='fulfilled'&&r.value.noKey).map(r=>r.value);
+  if(!items.length){
+    let msg='최근 7일간 표시할 뉴스가 없습니다';
+    if(noKeyItems.length)msg+=` · 미국 종목(${noKeyItems.map(s=>s.ticker).join(', ')})은 🔑 Finnhub 키 필요`;
+    feed.innerHTML=`<div style="font-size:12px;color:#aaa;padding:6px 0">${msg}</div>`;return;
+  }
+  // AI 요약 (CKEY 있을 경우)
+  let summaries=null;
+  if(CKEY){
+    feed.innerHTML='<div style="font-size:12px;color:#888;padding:6px 0"><span class="spin">⟳</span> AI 요약 중...</div>';
+    summaries=await translateNewsItems(items);
+  }
+  let html=items.map(({ticker,isKR,news:n},i)=>{
+    const t=n.datetime?new Date(n.datetime*1000).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}):'';
+    const bc=isKR?'#dcfce7':'#dbeafe';const cc=isKR?'#166534':'#1e40af';
+    const aiSummary=summaries?.[i];
+    return`<div class="news-card">
+      <div class="nc-meta">
+        <span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;background:${bc};color:${cc};font-family:monospace">${ticker}</span>
+        <span class="nc-src">${n.source||'—'}</span>
+        <span class="nc-time">${t}</span>
+      </div>
+      <div class="nc-title"><a href="${n.url||'#'}" target="_blank" rel="noopener">${n.headline||''}</a></div>
+      ${aiSummary?`<div style="font-size:12px;color:#1a1a1a;line-height:1.6;margin-top:4px;padding:7px 10px;background:#f8f7f4;border-radius:7px;border-left:3px solid ${bc}">${aiSummary}</div>`
+        :n.summary?`<div class="nc-summary">${n.summary.slice(0,130)}${n.summary.length>130?'…':''}</div>`:''}
+    </div>`;
+  }).join('');
+  if(noKeyItems.length)html+=`<div style="font-size:11px;color:#bbb;padding:6px 0;border-top:1px solid #f0efec;margin-top:4px">미국 종목 ${noKeyItems.map(s=>s.ticker).join(', ')} · 🔑 뉴스 페이지에서 Finnhub 키를 연결하면 표시됩니다</div>`;
+  feed.innerHTML=html;
+}
 
-        function isBookmarked(url) {
-            return loadBookmarks().some(b => b.url === url);
-        }
-
-        function toggleBookmark(article) {
-            const bookmarks = loadBookmarks();
-            const index = bookmarks.findIndex(b => b.url === article.url);
-            if (index > -1) {
-                bookmarks.splice(index, 1);
-            } else {
-                bookmarks.push({
-                    id: crypto.randomUUID(),
-                    title: article.title,
-                    source: article.source?.name || '출처 불명',
-                    url: article.url,
-                    urlToImage: article.urlToImage,
-                    publishedAt: article.publishedAt,
-                    savedAt: Date.now()
-                });
-            }
-            saveBookmarks(bookmarks);
-        }
-
-        // ===== Todo Functions =====
-        function showErrorMessage(message) {
-            const container = document.getElementById('errorContainer');
-            container.textContent = message;
-            container.classList.add('show');
-            setTimeout(() => container.classList.remove('show'), 3000);
-        }
-
-        function addTodo(text, category) {
-            if (!text.trim()) return;
-            const todos = loadTodos();
-            todos.push({
-                id: crypto.randomUUID(),
-                text: text.trim(),
-                category,
-                completed: false,
-                createdAt: Date.now(),
-                updatedAt: Date.now()
-            });
-            saveTodos(todos);
-            renderTodos();
-        }
-
-        function toggleTodo(id) {
-            const todos = loadTodos();
-            const todo = todos.find(t => t.id === id);
-            if (todo) {
-                todo.completed = !todo.completed;
-                todo.updatedAt = Date.now();
-                saveTodos(todos);
-                renderTodos();
-            }
-        }
-
-        function updateTodo(id, newText) {
-            if (!newText.trim()) {
-                renderTodos();
-                return;
-            }
-            const todos = loadTodos();
-            const todo = todos.find(t => t.id === id);
-            if (todo) {
-                todo.text = newText.trim();
-                todo.updatedAt = Date.now();
-                saveTodos(todos);
-                renderTodos();
-            }
-        }
-
-        function deleteTodo(id) {
-            const todos = loadTodos();
-            saveTodos(todos.filter(t => t.id !== id));
-            renderTodos();
-        }
-
-        function getStats() {
-            const todos = loadTodos();
-            const stats = { total: todos.length, completed: todos.filter(t => t.completed).length, byCategory: {} };
-            Object.keys(categoryConfig).forEach(cat => {
-                const items = todos.filter(t => t.category === cat);
-                stats.byCategory[cat] = { total: items.length, completed: items.filter(t => t.completed).length };
-            });
-            return stats;
-        }
-
-        function renderStats() {
-            const stats = getStats();
-            const percent = stats.total === 0 ? 0 : Math.round((stats.completed / stats.total) * 100);
-            const categoryStatsHtml = Object.entries(categoryConfig)
-                .map(([key, { name }]) => {
-                    const { total, completed } = stats.byCategory[key];
-                    return total > 0 ? `${name} ${completed}/${total}` : null;
-                })
-                .filter(Boolean)
-                .join(' | ');
-            document.getElementById('statsContainer').innerHTML = `
-                <div class="progress-section">
-                    <div class="progress-summary">
-                        <div>전체: ${stats.completed}개 중 ${stats.total}개 완료</div>
-                        <div class="progress-bar"><div class="progress-fill" style="width: ${percent}%"></div></div>
-                        <div class="progress-percent">${percent}%</div>
-                    </div>
-                    ${categoryStatsHtml ? `<div class="category-stats">${categoryStatsHtml}</div>` : ''}
-                </div>
-            `;
-        }
-
-        function renderFilterTabs() {
-            const filters = [{ key: 'all', name: '전체' }, ...Object.entries(categoryConfig).map(([key, { name }]) => ({ key, name }))];
-            const html = filters.map(f => `<button class="filter-tab ${f.key === currentFilter ? 'active' : ''}" data-filter="${f.key}" role="tab" aria-selected="${f.key === currentFilter}">${f.name}</button>`).join('');
-            const container = document.getElementById('filterTabs');
-            container.innerHTML = html;
-            container.querySelectorAll('.filter-tab').forEach(tab => {
-                tab.addEventListener('click', () => setFilter(tab.dataset.filter));
-            });
-        }
-
-        function setFilter(filter) {
-            currentFilter = filter;
-            renderFilterTabs();
-            renderTodos();
-        }
-
-        function getTodos(filter) {
-            const todos = loadTodos();
-            return filter === 'all' ? todos : todos.filter(t => t.category === filter);
-        }
-
-        function renderTodos() {
-            const todos = getTodos(currentFilter);
-            const container = document.getElementById('todosContainer');
-            if (todos.length === 0) {
-                container.innerHTML = `<div class="empty-message">${currentFilter === 'all' ? '할 일이 없어요.' : '이 카테고리에 할 일이 없어요.'}</div>`;
-                renderStats();
-                loadNewsWidget();
-                return;
-            }
-            const html = todos.map(todo => {
-                const catColor = categoryConfig[todo.category]?.color || '#999';
-                const catName = categoryConfig[todo.category]?.name || todo.category;
-                return `
-                    <div class="todo-item">
-                        <input type="checkbox" ${todo.completed ? 'checked' : ''} data-id="${todo.id}" class="todo-checkbox" aria-label="${escapeHtml(todo.text)}">
-                        <span class="todo-text ${todo.completed ? 'completed' : ''}" data-id="${todo.id}">${escapeHtml(todo.text)}</span>
-                        <span class="category-badge" style="background-color: ${catColor}">${catName}</span>
-                        <button class="delete-btn" data-id="${todo.id}">삭제</button>
-                    </div>
-                `;
-            }).join('');
-            container.innerHTML = html;
-            container.querySelectorAll('.todo-checkbox').forEach(cb => cb.addEventListener('change', e => toggleTodo(e.target.dataset.id)));
-            container.querySelectorAll('.delete-btn').forEach(btn => btn.addEventListener('click', e => deleteTodo(e.target.dataset.id)));
-            container.querySelectorAll('.todo-text').forEach(span => {
-                span.addEventListener('dblclick', e => {
-                    const todos = loadTodos();
-                    const todo = todos.find(t => t.id === e.target.dataset.id);
-                    if (todo) {
-                        const input = document.createElement('input');
-                        input.type = 'text';
-                        input.value = todo.text;
-                        input.className = 'edit-input';
-                        input.maxLength = '100';
-                        e.target.replaceWith(input);
-                        input.focus();
-                        input.select();
-                        const finish = (save) => {
-                            if (save && input.value.trim() && input.value !== todo.text) {
-                                updateTodo(todo.id, input.value);
-                            } else {
-                                renderTodos();
-                            }
-                        };
-                        input.addEventListener('keydown', e => {
-                            if (e.key === 'Enter') { e.preventDefault(); finish(true); }
-                            if (e.key === 'Escape') { e.preventDefault(); finish(false); }
-                        });
-                        input.addEventListener('blur', () => finish(true));
-                    }
-                });
-            });
-            renderStats();
-            loadNewsWidget();
-        }
-
-        // ===== News Functions =====
-        async function fetchNews() {
-            const cached = getNewsCache('general');
-            if (cached) {
-                console.log('[News] Using cached articles');
-                return cached;
-            }
-            await new Promise(resolve => setTimeout(resolve, 500));
-            const articles = [...SAMPLE_NEWS];
-            setNewsCache('general', articles);
-            return articles;
-        }
-
-        function renderNewsSkeleton() {
-            document.getElementById('newsContainer').innerHTML = Array(3).fill().map(() => `
-                <div class="news-skeleton" aria-hidden="true">
-                    <div class="skeleton-thumb"></div>
-                    <div class="skeleton-content">
-                        <div class="skeleton-line w-full"></div>
-                        <div class="skeleton-line w-3-4"></div>
-                        <div class="skeleton-line w-1-3"></div>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        function renderNewsList(articles) {
-            const container = document.getElementById('newsContainer');
-            if (!articles?.length) {
-                container.innerHTML = '<div class="news-state"><div class="state-icon">📭</div><div class="state-message">뉴스가 없습니다.</div></div>';
-                return;
-            }
-            const html = articles.map(article => {
-                const isMarked = isBookmarked(article.url);
-                const bookmarkIcon = '🔖';
-                return `
-                    <div class="news-card" role="article" tabindex="0" data-url="${escapeHtml(article.url)}" aria-label="${escapeHtml(article.title)}">
-                        <button class="news-bookmark-btn ${isMarked ? 'bookmarked' : ''}" data-url="${escapeHtml(article.url)}" aria-label="${isMarked ? '북마크 제거' : '북마크 추가'}">${bookmarkIcon}</button>
-                        <div class="news-thumbnail">${article.urlToImage || '📰'}</div>
-                        <div class="news-content">
-                            <div class="news-title">${escapeHtml(article.title)}</div>
-                            <div class="news-meta">
-                                <span class="news-source">${escapeHtml(article.source?.name || '출처')}</span>
-                                ${article.publishedAt ? `<span class="news-sep">·</span><span>${formatTimeAgo(article.publishedAt)}</span>` : ''}
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-            container.innerHTML = html;
-            container.querySelectorAll('.news-bookmark-btn').forEach(btn => {
-                btn.addEventListener('click', e => {
-                    e.stopPropagation();
-                    const article = articles.find(a => a.url === btn.dataset.url);
-                    if (article) {
-                        toggleBookmark(article);
-                        btn.classList.toggle('bookmarked');
-                    }
-                });
-            });
-            container.querySelectorAll('.news-card').forEach(card => {
-                const open = () => window.open(card.dataset.url, '_blank', 'noopener,noreferrer');
-                card.addEventListener('click', open);
-                card.addEventListener('keydown', e => {
-                    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); }
-                });
-            });
-        }
-
-        function renderBookmarksList() {
-            const bookmarks = loadBookmarks().sort((a, b) => b.savedAt - a.savedAt);
-            const container = document.getElementById('bookmarksContainer');
-            const clearBtn = document.getElementById('clearAllBtn');
-            if (bookmarks.length === 0) {
-                clearBtn.style.display = 'none';
-                container.innerHTML = '<div class="news-state"><div class="state-icon">🔖</div><div class="state-message">저장된 기사가 없어요.<br>뉴스 탭에서 북마크해보세요.</div></div>';
-                return;
-            }
-            clearBtn.style.display = 'inline-block';
-            const html = bookmarks.map(b => `
-                <div class="news-card" role="article" tabindex="0" data-url="${escapeHtml(b.url)}" aria-label="${escapeHtml(b.title)}">
-                    <button class="news-bookmark-btn bookmarked" data-url="${escapeHtml(b.url)}" aria-label="북마크 제거">🔖</button>
-                    <div class="news-thumbnail">${b.urlToImage || '📰'}</div>
-                    <div class="news-content">
-                        <div class="news-title">${escapeHtml(b.title)}</div>
-                        <div class="news-meta">
-                            <span class="news-source">${escapeHtml(b.source)}</span>
-                            ${b.publishedAt ? `<span class="news-sep">·</span><span>${formatTimeAgo(b.publishedAt)}</span>` : ''}
-                        </div>
-                    </div>
-                </div>
-            `).join('');
-            container.innerHTML = html;
-            container.querySelectorAll('.news-bookmark-btn').forEach(btn => {
-                btn.addEventListener('click', e => {
-                    e.stopPropagation();
-                    toggleBookmark({ url: btn.dataset.url });
-                    renderBookmarksList();
-                });
-            });
-            container.querySelectorAll('.news-card').forEach(card => {
-                const open = () => window.open(card.dataset.url, '_blank', 'noopener,noreferrer');
-                card.addEventListener('click', open);
-                card.addEventListener('keydown', e => {
-                    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); }
-                });
-            });
-        }
-
-        async function showNewsTab() {
-            renderNewsSkeleton();
-            try {
-                const articles = await fetchNews();
-                renderNewsList(articles);
-            } catch (err) {
-                console.error('[News] Error:', err);
-                document.getElementById('newsContainer').innerHTML = '<div class="news-state"><div class="state-icon">😵</div><div class="state-message">뉴스를 불러오지 못했습니다.</div></div>';
-            }
-        }
-
-        function switchNewsSubtab(subtab) {
-            currentNewsSubtab = subtab;
-            document.querySelectorAll('.news-subtab').forEach(btn => btn.classList.toggle('active', btn.dataset.subtab === subtab));
-            document.getElementById('news-feed-container').style.display = subtab === 'news-feed' ? '' : 'none';
-            document.getElementById('bookmarks-container').style.display = subtab === 'bookmarks' ? '' : 'none';
-            if (subtab === 'news-feed') showNewsTab();
-            else if (subtab === 'bookmarks') renderBookmarksList();
-        }
-
-        async function loadNewsWidget() {
-            const container = document.getElementById('newsWidgetContainer');
-            try {
-                renderNewsWidget();
-            } catch (err) {
-                container.style.display = 'none';
-            }
-        }
-
-        async function renderNewsWidget() {
-            const container = document.getElementById('newsWidgetContainer');
-            const articles = await fetchNews();
-            if (!articles?.length) {
-                container.style.display = 'none';
-                return;
-            }
-            const topArticles = articles.slice(0, 3);
-            const itemsHtml = topArticles.map(article => {
-                const url = escapeHtml(article.url);
-                const title = escapeHtml(article.title);
-                const source = escapeHtml(article.source?.name || '출처');
-                return `
-                    <div class="widget-news-item">
-                        <div class="widget-news-title" onclick="window.open('${url}', '_blank', 'noopener,noreferrer')" title="${title}">${title}</div>
-                        <div class="widget-news-source">${source}</div>
-                    </div>
-                `;
-            }).join('');
-            container.innerHTML = `
-                <div class="news-widget">
-                    <div class="widget-title">📰 오늘의 주요 뉴스</div>
-                    ${itemsHtml}
-                    <div class="widget-footer">
-                        <span class="widget-more-link" onclick="switchTab('news')">더 보기 →</span>
-                    </div>
-                </div>
-            `;
-            container.style.display = '';
-        }
-
-        // ===== Tab Navigation =====
-        function switchTab(tabName) {
-            document.getElementById('tab-todo').style.display = tabName === 'todo' ? '' : 'none';
-            document.getElementById('tab-news').style.display = tabName === 'news' ? '' : 'none';
-            document.querySelectorAll('.nav-tab').forEach(btn => {
-                const isActive = btn.dataset.tab === tabName;
-                btn.classList.toggle('active', isActive);
-                btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
-            });
-            if (tabName === 'todo') {
-                renderTodos();
-            } else if (tabName === 'news') {
-                currentNewsSubtab = 'news-feed';
-                switchNewsSubtab('news-feed');
-            }
-        }
-
-        // ===== Init =====
-        (function init() {
-            renderFilterTabs();
-            renderTodos();
-
-            document.querySelectorAll('.nav-tab').forEach(btn => btn.addEventListener('click', () => switchTab(btn.dataset.tab)));
-            document.querySelectorAll('.news-subtab').forEach(btn => btn.addEventListener('click', () => switchNewsSubtab(btn.dataset.subtab)));
-
-            document.getElementById('clearAllBtn').addEventListener('click', () => {
-                if (confirm('저장된 기사를 모두 삭제할까요?')) {
-                    saveBookmarks([]);
-                    renderBookmarksList();
-                }
-            });
-
-            const addBtn = document.getElementById('addBtn');
-            const todoInput = document.getElementById('todoInput');
-            const charCount = document.getElementById('charCount');
-
-            addBtn.addEventListener('click', () => {
-                const text = todoInput.value;
-                const category = document.getElementById('categorySelect').value;
-                addTodo(text, category);
-                todoInput.value = '';
-                todoInput.focus();
-            });
-
-            todoInput.addEventListener('keypress', e => {
-                if (e.key === 'Enter') {
-                    addBtn.click();
-                }
-            });
-
-            todoInput.addEventListener('input', e => {
-                charCount.textContent = `${e.target.value.length}/100`;
-            });
-        })();
-    </script>
+// ─ 초기화 및 갱신
+function refreshAll(){renderStocks();fetchPrices();}
+updateCashDisplay();
+renderStocks();renderMemos();renderSites();renderReg();loadAllIndices();loadFX();
+if(stocks.length)fetchPrices();
+if(CKEY)document.getElementById('pn-ai-dot').style.display='inline-block';
+loadPortfolioNews();
+</script>
 </body>
 </html>
