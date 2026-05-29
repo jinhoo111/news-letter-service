@@ -1204,33 +1204,35 @@ async function loadPortfolioNews(){
     const isKR=/\.(KS|KQ)$/i.test(s.ticker);
     if(isKR){
       const code=s.ticker.replace(/\.(KS|KQ)$/i,'');
-      const newsUrl=`https://m.stock.naver.com/api/news/stock/${code}?pageSize=3`;
-      const parseNaverNews=d=>{
-        // Naver API 응답 구조 다중 대응 (newsList / list / result.list 등)
-        const list=d?.newsList||d?.list||d?.items||d?.result?.newsList||d?.result?.list||[];
-        if(!list.length)return null;
-        const n=list[0];
-        // 날짜: ISO 또는 "YYYY.MM.DD" 포맷 모두 처리
-        const rawDate=n.publishDate||n.date||n.wdate||'';
-        const ts=rawDate?new Date(rawDate.replace(/\./g,'-')).getTime()/1000:null;
-        // URL: url 필드 우선, 없으면 officeId+articleId 조합
-        const link=n.url||n.linkUrl||
-          (n.officeId&&n.articleId?`https://n.news.naver.com/article/${n.officeId}/${n.articleId}`:'#');
-        return{headline:n.title||n.officeNewsTitle||'',url:link,source:n.officeName||'네이버',datetime:ts,summary:n.description||''};
-      };
-      let news=null;
-      // allorigins /get → {contents:"..."} 구조로 Naver 차단 우회에 더 안정적
-      const naverProxies=[
-        async()=>{const r=await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(newsUrl)}`);const w=await r.json();return w.contents?JSON.parse(w.contents):null;},
-        async()=>{const r=await fetch(`https://corsproxy.io/?${encodeURIComponent(newsUrl)}`);return r.json();}
+      const naverUrl=`https://m.stock.naver.com/api/news/stock/${code}?pageSize=3`;
+      const enc=encodeURIComponent(naverUrl);
+      const proxies=[
+        `https://api.codetabs.com/v1/proxy/?quest=${enc}`,
+        `https://api.allorigins.win/raw?url=${enc}`,
+        `https://corsproxy.io/?${enc}`,
       ];
-      for(const p of naverProxies){
+      let newsData=null;
+      for(const pu of proxies){
         try{
-          const d=await Promise.race([p(),new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),6000))]);
-          if(d){news=parseNaverNews(d);if(news)break;}
-        }catch(_){}
+          const r=await Promise.race([
+            fetch(pu).then(r=>{if(!r.ok)throw new Error();return r.json();}),
+            new Promise((_,rej)=>setTimeout(()=>rej(),5000))
+          ]);
+          if(Array.isArray(r)&&r[0]?.items?.length){newsData=r[0].items[0];break;}
+        }catch(e){}
       }
-      return{name:s.name,ticker:s.ticker,isKR:true,news};
+      if(newsData){
+        const n=newsData;
+        const dt=String(n.datetime||'');
+        let ts=null;
+        if(dt.length>=12){
+          const yr=dt.slice(0,4),mo=dt.slice(4,6),dy=dt.slice(6,8),hr=dt.slice(8,10),mi=dt.slice(10,12);
+          ts=Math.floor(new Date(`${yr}-${mo}-${dy}T${hr}:${mi}:00+09:00`).getTime()/1000);
+        }
+        const link=n.officeId&&n.articleId?`https://n.news.naver.com/article/${n.officeId}/${n.articleId}`:'#';
+        return{name:s.name,ticker:s.ticker,isKR:true,news:{headline:n.title||'',url:link,source:n.officeName||'네이버',datetime:ts,summary:(n.body||'').slice(0,100)}};
+      }
+      return{name:s.name,ticker:s.ticker,isKR:true,news:null};
     }else{
       if(!FKEY)return{name:s.name,ticker:s.ticker,isKR:false,news:null,noKey:true};
       try{
